@@ -122,7 +122,7 @@ Archi(5): Géneration de documents
 Annexes
 =======
 
-:Orde de grandeur:
+:Ordres de grandeurs:
     - Taille des fichier video: ``~8M/min``
     - Locution chaînes d'info: 160 à 190 mots/min
     - Taille d'un mot en francais: ``~6chars``

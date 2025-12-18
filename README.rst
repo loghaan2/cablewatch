@@ -28,4 +28,4 @@ Build the docs
 
 Documentation files are then available at the following locations:
     - ``docs/build/README/README/index.html`` (this README document)
-    - ``docs/build/project_proposal/project_proposal/index.html`` (project proposal slids)
+    - ``docs/build/project_proposal/project_proposal/index.html`` (project proposal slides)
