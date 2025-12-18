@@ -46,13 +46,13 @@ Les questions
 
 - Quel était le sujet d'actualité majeur de la journée du 17 décembre ?
 
-- Donne moi la liste des invités de l'émission ``XYZ`` en date du 18 décembre ?
+- Donne moi la liste des invités de l'émission ``La Matinale`` du 18 décembre ?
 
-- Autres...
+- (...)
 
 
-L'architecture du projet
-========================
+Architecture du projet
+======================
 
 
 Archi(1): *Ingest*
@@ -70,15 +70,15 @@ Archi(1): *Ingest*
 Archi(2): Tranfos
 =================
 
-Périodiquement sur les segments enregistrés: |br|
+Périodiquement, sur les segments enregistrés: |br|
 
 - extraire l'audio et faire du *voice-to-text*
 
-- analyse les bandeaux standardisés (*image recognition*) de la chaîne
+- analyser les bandeaux standardisés (*image recognition*) de la chaîne
   pour retrouver de la meta-donnée (locuteur, émission en cours...)
 
-- *cleanup*: une fois les segments video transformés il faut les
-  effacer (pour des raisons de place dans le *storage*)
+- *cleanup*: une fois les segments video traités il faut les
+  effacer (pour économiser de la place dans le *storage*)
 
 |big_hspace| ==> c'est du *batch* !
 
@@ -90,8 +90,8 @@ Archi(3): Les bandeaux
 
 
 
-*A partir d'ici c'est un peu plus fou pour moi ;)*
-==================================================
+*A partir d'ici c'est un peu plus flou pour moi* 😉
+===================================================
 
 .. image:: /_static/images/velma.png
     :scale: 25%
@@ -103,30 +103,43 @@ Archi(4): Géneration de documents
 
 - L'idée est de générer des documents à partir
   des données extraites et d'utiliser un ``LLM`` pour
-  les exploiter et répondre aux questions
+  les exploiter
 
-- est-ce que les questions sont prédéfinis à l'avance ?
-
+- on peut imaginer de faire un document par émission
 
 
 Archi(5): Géneration de documents
 =================================
 
-- on peut imaginer de faire un document par émission. ``RAG`` ?
+- Ca a l'air de ressembler à du ``RAG`` ?
 
-- il faut conserver l'information temporel dans ces documents
+- il faut conserver l'information temporelle dans ces documents
+
+|big_hspace| ==> *To be defined* mais c'est aussi du *batch* !
+
+
+Archi(6): Résultats
+===================
+
+Résultat dans un document web:
+
+- Est-ce que les questions sont prédéfinies à l'avance ?
+
+- Présenter les questions/réponses de manière statique
+
+- *chatbot* si les questions sont pas prédéfinies
 
 |big_hspace| ==> *To be defined !*
 
 
-Annexes
-=======
+Dernier slide 😁
+================
 
 :Ordres de grandeurs:
     - Taille des fichier video: ``~8M/min``
-    - Locution chaînes d'info: 160 à 190 mots/min
+    - Locution chaînes d'info: ~170 mots/min
     - Taille d'un mot en francais: ``~6chars``
 
-:Technologies:
-    ``#python #ffmpeg #fastapi #airflow #linux #docker
-    #yt-dlp  #LLM #RAG #GCP:Speech-to-Text #GCP:Vision``
+:Les technos:
+    ``#python #ffmpeg #yt-dlp #fastapi #airflow #docker
+    #web-front #LLM #RAG #GCP:Speech-to-Text #GCP:Vision``
