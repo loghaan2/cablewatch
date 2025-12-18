@@ -37,7 +37,7 @@ En quelques mots
 - analyser le direct d'une chaîne d'info en continue
   (comme ``france info`` par exemple)
 
-- fournir des réponses à des questions en rapport
+- fournir des réponses à des questions (en français) en rapport
   avec ce qui a été diffusé sur la chaîne
 
 
@@ -46,7 +46,7 @@ Les questions
 
 - Quel était le sujet d'actualité majeur de la journée du 17 décembre ?
 
-- Donne moi la liste des invités de l'émission ``La Matinale`` du 18 décembre ?
+- Donne moi la liste des invités de l'émission ``"La Matinale"`` du 18 décembre ?
 
 - (...)
 
@@ -66,11 +66,13 @@ Archi(1): *Ingest*
 
 - les segments doivent être *taggés* avec un *timestamp*
 
+|big_hspace| ==> c'est du *streaming* !
+
 
 Archi(2): Tranfos
 =================
 
-Périodiquement, sur les segments enregistrés: |br|
+Périodiquement, sur chaque segments enregistrés: |br|
 
 - extraire l'audio et faire du *voice-to-text*
 
@@ -115,7 +117,7 @@ Archi(5): Géneration de documents
 
 - il faut conserver l'information temporelle dans ces documents
 
-|big_hspace| ==> *To be defined* mais c'est aussi du *batch* !
+==> *To be defined* mais l'opération de génération c'est aussi du *batch* !
 
 
 Archi(6): Résultats
