@@ -1,0 +1,19 @@
+[project]
+name = "cablewatch"
+version = "0.0.1"
+description = ""
+authors = [
+    {name = "Sébastien MATZ",email = "loghaan@gmail.com"}
+]
+readme = "README.rst"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "sphinx (==8.2.3)",
+    "sphinx-rtd-theme (==3.0.2)",
+    "sphinx-revealjs (==3.2.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

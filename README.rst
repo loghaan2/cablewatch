@@ -14,7 +14,7 @@ Setup virtual environment
     $ pyenv install 3.13.9
     $ pyenv virtualenv 3.13.9 cablewatch
     $ pyenv activate cablewatch
-    $ pip install -r requirements.txt
+    $ pip install [-e] .
 
 
 Build the docs
