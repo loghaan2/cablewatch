@@ -8,6 +8,9 @@ class Config:
     WEB_LISTENADDR = '0.0.0.0'
     WEB_PORT = 8000
     WEB_ROOTDIR = '{PROJECT_DIR}/www'
+    LOGS_DIR =  '{PROJECT_DIR}/logs'
+    INGEST_DATADIR =  '{PROJECT_DIR}/data/ingest'
+    INGEST_YOUTUBE_STREAM_URL = 'https://www.youtube.com/watch?v=Z-Nwo-ypKtM'
 
     def __init__(self):
         if self.__class__._state is not None:

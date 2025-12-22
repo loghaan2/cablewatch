@@ -24,10 +24,13 @@ class UNIXSignalsManager:
 
 
 @make_synchrone
-async def http_main():
+async def ingest_main():
     loghlp.setup()
     mng = UNIXSignalsManager()
     http_service = http.HTTPService()
+    ingest_service = ingest.IngestService(http_service=http_service)
     await http_service.start()
+    await ingest_service.start()
     await mng.waitInterruptSignal()
+    await ingest_service.stop()
     await http_service.stop()
