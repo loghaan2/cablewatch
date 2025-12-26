@@ -27,6 +27,7 @@ Build the docs
 
 Documentation files are then available at the following locations:
     - ``docs/build/README/README/index.html`` (this README document)
+    - ``docs/build/ROADMAP/ROADMAP/index.html`` (from ``ROADMAP.md``)
     - ``docs/build/project_proposal/project_proposal/index.html`` (project proposal slides)
 
 
