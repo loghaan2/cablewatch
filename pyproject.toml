@@ -26,3 +26,4 @@ build-backend = "poetry.core.masonry.api"
 [project.scripts]
 cablewatch-ingest = "cablewatch.cli:ingest_main"
 cablewatch-loadroadmap = "cablewatch.cli:loadroadmap_main"
+cablewatch-extract-banners = "cablewatch.cli:extract_banners_main"

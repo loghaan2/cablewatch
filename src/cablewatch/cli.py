@@ -3,7 +3,7 @@ import signal
 import requests
 from loguru import logger
 from bs4 import BeautifulSoup
-from cablewatch import config, http, loghlp, ingest
+from cablewatch import config, http, loghlp, ingest, banners
 
 
 def make_synchrone(async_func):
@@ -48,3 +48,6 @@ def loadroadmap_main():
         raise AssertionError("Cannot find publish page")
     with open("ROADMAP.md", 'w') as f:
         f.write(div.get_text(strip=True))
+
+def extract_banners_main():
+    banners.main()
