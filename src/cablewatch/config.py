@@ -1,5 +1,6 @@
 import pathlib
 import re
+import tomllib
 
 
 class Config:
@@ -11,12 +12,21 @@ class Config:
     LOGS_DIR =  '{PROJECT_DIR}/logs'
     INGEST_DATADIR =  '{PROJECT_DIR}/data/ingest'
     INGEST_YOUTUBE_STREAM_URL = 'https://www.youtube.com/watch?v=Z-Nwo-ypKtM'
+    PROJECT_DIR = f"{str(pathlib.Path(__file__).parent.parent.parent)}"
 
     def __init__(self):
         if self.__class__._state is not None:
             self.__dict__ = self._state
             return
-        self.PROJECT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
+        try:
+            with open(f"{self.PROJECT_DIR}/cablewatch-local.toml", "rb") as f:
+                d = tomllib.load(f)
+                if 'config' in d:
+                    for k,v in d['config'].items():
+                        if self._is_conf_attr_name(k):
+                            setattr(self,k,v)
+        except FileNotFoundError:
+            pass
         self.__class__._state = self.__dict__
 
     @staticmethod

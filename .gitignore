@@ -4,3 +4,4 @@ data/ingest/tmp/segment_*.ts
 data/ingest/tmp/*.m3u8
 logs/ingest_*.log
 src/cablewatch/__pycache__/
+cablewatch-local.toml

@@ -1,6 +1,8 @@
 import asyncio
 import signal
+import requests
 from loguru import logger
+from bs4 import BeautifulSoup
 from cablewatch import config, http, loghlp, ingest
 
 
@@ -34,3 +36,15 @@ async def ingest_main():
     await mng.waitInterruptSignal()
     await ingest_service.stop()
     await http_service.stop()
+
+
+def loadroadmap_main():
+    conf = config.Config()
+    response = requests.get(f'{conf.ROADMAP_HACKMD_URL}')
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    div = soup.find("div", id="publish-page")
+    if not div:
+        raise AssertionError("Cannot find publish page")
+    with open("ROADMAP.md", 'w') as f:
+        f.write(div.get_text(strip=True))
