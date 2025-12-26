@@ -6,6 +6,15 @@
 ----------------
 
 
+Requirements
+=========================
+
+.. code-block:: shell-session
+
+    $ sudo apt-get install ffmpeg yt-dlp
+
+
+
 Setup virtual environment
 =========================
 

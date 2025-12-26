@@ -84,7 +84,7 @@ class IngestService:
         return sum / len(self._drifts)
 
     async def processLineIssuedByCommand(self, line):
-        if line.startswith('frame='):
+        if line.startswith('frame=') or line.startswith('size='):
             return
         m = re.search(r'^\[https @ 0x[0-9a-f]+\] Opening', line)
         if m:
