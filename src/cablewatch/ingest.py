@@ -280,6 +280,7 @@ class IngestService:
         sts = {}
         sts['type'] = 'status'
         sts['recording_requested'] = self._recording_requested
+        sts['segment_filename'] = self._segment_filename
         if self._proc is not None:
             sts['pid'] = self._proc.pid
         else:
