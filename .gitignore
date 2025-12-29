@@ -3,3 +3,7 @@ data/ingest/segment_*.ts
 data/ingest/tmp/segment_*.ts
 logs/ingest_*.log
 src/cablewatch/__pycache__/
+rag_test/.env
+rag_test/Makefile.txt
+rag_test/.bash
+rag_test/requirements.txt

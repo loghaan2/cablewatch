@@ -11,7 +11,11 @@ class Config:
     LOGS_DIR =  '{PROJECT_DIR}/logs'
     INGEST_DATADIR =  '{PROJECT_DIR}/data/ingest'
     INGEST_YOUTUBE_STREAM_URL = 'https://www.youtube.com/watch?v=Z-Nwo-ypKtM'
-
+    
+    #processus SPEECH2TEXT
+    TRANSCRIPT_DATADIR =  '{PROJECT_DIR}/data/trascript'
+    INGEST_DATADIR_TEST =  '{PROJECT_DIR}/data/ingest/ingest_test'
+    
     def __init__(self):
         if self.__class__._state is not None:
             self.__dict__ = self._state

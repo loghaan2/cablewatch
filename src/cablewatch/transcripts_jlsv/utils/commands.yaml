@@ -1,0 +1,15 @@
+transcription_variables:
+  gcp_environment:
+    project_id: teak-instrument-480811-u5
+    location: eu
+  s2t_model_config:
+    language: fr-FR
+    model: chirp_3
+    min_speaker: 1
+    max_speaker: 5
+
+
+                
+                 
+                  
+                
