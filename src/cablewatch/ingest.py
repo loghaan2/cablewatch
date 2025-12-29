@@ -19,6 +19,7 @@ SEGMENT_FORMAT = 'segment_%Y-%m-%d_%Hh%M-%Ss.ts'
 class IngestService:
     COMMAND = f"""
         yt-dlp -f best
+          {{yt_dlp_extra_args}}
           -o - {{url}}
         |
           ffmpeg -re
@@ -34,7 +35,6 @@ class IngestService:
           tmp/output.m3u8
     """
 
-
     HLS_EXT_INF = '#EXTINF:'
     HLS_EXT_PROGDT = '#EXT-X-PROGRAM-DATE-TIME:'
 
@@ -43,7 +43,7 @@ class IngestService:
         self._recording_requested = recording_requested
         cmd = self.COMMAND
         cmd = textwrap.dedent(cmd)
-        cmd = cmd.format(url=conf.INGEST_YOUTUBE_STREAM_URL)
+        cmd = cmd.format(url=conf.INGEST_YOUTUBE_STREAM_URL, yt_dlp_extra_args=conf.YT_DLP_EXTRA_ARGS)
         cmd = cmd.replace('\n', ' ')
         cmd = cmd.strip()
         self._command = cmd
