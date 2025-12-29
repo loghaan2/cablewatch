@@ -12,22 +12,31 @@ from cablewatch import config
 from cablewatch.decorators import http_get
 
 
+SEGMENT_DURATION = 30
+SEGMENT_FORMAT = 'segment_%Y-%m-%d_%Hh%M-%Ss.ts'
+
+
 class IngestService:
-    COMMAND = """
-        yt-dlp -f best -o - {url} |
-        ffmpeg -re
-        -i pipe:0
-        -y
-        -c copy
-        -f hls
-        -hls_time 30
-        -hls_flags program_date_time
-        -hls_list_size 1
-        -hls_segment_filename tmp/segment_%08d.ts
-        tmp/output.m3u8
+    COMMAND = f"""
+        yt-dlp -f best
+          -o - {{url}}
+        |
+          ffmpeg -re
+          -i pipe:0
+          -y
+          -c copy
+          -f hls
+          -hls_time {SEGMENT_DURATION}
+          -hls_flags program_date_time
+          -hls_list_size 1
+          -strftime 1
+          -hls_segment_filename tmp/segment_%s.ts
+          tmp/output.m3u8
     """
 
-    _EXT_X_PROGDT = '#EXT-X-PROGRAM-DATE-TIME:'
+
+    HLS_EXT_INF = '#EXTINF:'
+    HLS_EXT_PROGDT = '#EXT-X-PROGRAM-DATE-TIME:'
 
     def __init__(self, *, http_service, recording_requested=True):
         conf = config.Config()
@@ -91,8 +100,8 @@ class IngestService:
             return
         m = re.search(r"\[hls @ 0x[0-9a-f]+\] Skip \('(\S+)'\)", line)
         if m:
-            if m.group(1).startswith(self._EXT_X_PROGDT):
-                dt = datetime.fromisoformat(m.group(1)[len(self._EXT_X_PROGDT):])
+            if m.group(1).startswith(self.HLS_EXT_PROGDT):
+                dt = datetime.fromisoformat(m.group(1)[len(self.HLS_EXT_PROGDT):])
                 dt = dt.astimezone()
                 drift = datetime.now().astimezone() - dt
                 self._drifts += [drift]
@@ -105,27 +114,39 @@ class IngestService:
             if fn.endswith('.ts'):
                 self._tmp_segment_filename = fn
             elif fn.endswith('.m3u8.tmp'):
-                with open(fn[:-4],'r') as f:
-                    count = 0
-                    while True:
-                        ln = f.readline()
-                        if len(ln) == 0:
-                            break
-                        if ln.endswith('\n'):
-                            ln=ln[:-1]
-                        if ln.startswith(self._EXT_X_PROGDT):
-                            dt = datetime.strptime(ln[len(self._EXT_X_PROGDT):], "%Y-%m-%dT%H:%M:%S.%f%z")
-                            dt = dt - self.getDriftAverage()
-                            self._segment_filename = dt.strftime('segment_%Y-%m-%d_%Hh%M-%Ss.ts')
-                            count += 1
-                        if ln.startswith('segment_'):
-                            logger.info(f'move {self._tmp_segment_filename!r} to {self._segment_filename!r}')
-                            os.rename(self._tmp_segment_filename, self._segment_filename)
-                            count += 1
-                    if count < 2:
-                        raise AssertionError
+                self.processM3U8Output(fn)
             return 'INFO'
         return self._current_cmd_log_level
+
+    def processM3U8Output(self, fn):
+        with open(fn[:-4],'r') as f:
+            count = 0
+            duration = None
+            while True:
+                ln = f.readline()
+                if len(ln) == 0:
+                    break
+                if ln.endswith('\n'):
+                    ln=ln[:-1]
+                if ln.startswith(self.HLS_EXT_INF):
+                    L = len(self.HLS_EXT_INF)
+                    duration = float(ln[L:-1])
+                    count += 1
+                if ln.startswith(self.HLS_EXT_PROGDT):
+                    L = len(self.HLS_EXT_PROGDT)
+                    dt = datetime.strptime(ln[L:], "%Y-%m-%dT%H:%M:%S.%f%z")
+                    dt = dt - self.getDriftAverage()
+                    self._segment_filename = dt.strftime(SEGMENT_FORMAT)
+                    count += 1
+                if ln.startswith('segment_'):
+                    logger.info(f'move {self._tmp_segment_filename!r} to {self._segment_filename!r}')
+                    os.rename(self._tmp_segment_filename, self._segment_filename)
+                    self._discontinuity_marker = self._segment_filename + '.discontinuity'
+                    if duration != SEGMENT_DURATION:
+                        logger.warning(f'{self._segment_filename!r} duration is {duration}s')
+                    count += 1
+            if count < 3:
+                raise AssertionError
 
     def removeOldTempSegments(self):
         conf = config.Config()
@@ -237,7 +258,7 @@ class IngestService:
                             await self.pushStatus()
                             returned_msg = "ok"
                         else:
-                            returned_msg = "ko"
+                            returned_msg = "state error: curently recording"
                     elif msg.data == 'halt':
                         if self._recording_requested:
                             self._number_of_failed_records -= 1
@@ -247,7 +268,7 @@ class IngestService:
                             await self.haltCommand()
                             returned_msg = "ok"
                         else:
-                            returned_msg = "ko"
+                            returned_msg = "state error: curently not recording"
                     else:
                         returned_msg = f"invalid command: '{msg.data}'"
                     await ws.send_json({'type': 'command-reply', 'message': returned_msg})
