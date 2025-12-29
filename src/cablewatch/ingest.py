@@ -1,4 +1,5 @@
 import os
+import sys
 import signal
 import asyncio
 import re
@@ -38,7 +39,7 @@ class IngestService:
     HLS_EXT_INF = '#EXTINF:'
     HLS_EXT_PROGDT = '#EXT-X-PROGRAM-DATE-TIME:'
 
-    def __init__(self, *, http_service, recording_requested=True):
+    def __init__(self, *, http_service, recording_requested=True, canceller=None):
         conf = config.Config()
         self._recording_requested = recording_requested
         cmd = self.COMMAND
@@ -58,6 +59,7 @@ class IngestService:
         self._number_of_launched_records = 0
         self._number_of_failed_records = 0
         self._drifts = []
+        self._canceller = canceller
         http_service.addDecoratedRoutes(self)
 
     async def start(self):
@@ -209,6 +211,21 @@ class IngestService:
             self._proc = None
             self._number_of_failed_records += 1
             await self.pushStatus()
+            self.checkFatalAtStartup()
+
+    def checkFatalAtStartup(self, msg=''):
+        duration = (datetime.now() - self._service_start_time).total_seconds()
+        if not (5 < duration < 10):
+            return
+        rate = self._number_of_failed_records / duration
+        if rate < 0.6:
+            return
+        logger.error("too many record/halt cycles at startup")
+        self._background_task.cancel()
+        if self._canceller:
+            self._canceller.cancel()
+        else:
+            sys.exit(-1)
 
     def markLastSegment(self):
         if self._last_segment_marker is None:
