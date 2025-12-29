@@ -141,9 +141,7 @@ class IngestService:
                 if ln.startswith('segment_'):
                     logger.info(f'move {self._tmp_segment_filename!r} to {self._segment_filename!r}')
                     os.rename(self._tmp_segment_filename, self._segment_filename)
-                    self._discontinuity_marker = self._segment_filename + '.discontinuity'
-                    if duration != SEGMENT_DURATION:
-                        logger.warning(f'{self._segment_filename!r} duration is {duration}s')
+                    self._last_segment_marker = self._segment_filename + '.last'
                     count += 1
             if count < 3:
                 raise AssertionError
@@ -179,6 +177,7 @@ class IngestService:
         self._number_of_launched_records += 1
         self._tmp_segment_filename = None
         self._segment_filename = None
+        self._last_segment_marker = None
         self._current_cmd_log_level = 'INFO'
         try:
             conf = config.Config()
@@ -206,9 +205,17 @@ class IngestService:
             returncode = await proc.wait()
             logger.log(self._current_cmd_log_level, f'command exits with returncode {returncode}')
         finally:
+            self.markLastSegment()
             self._proc = None
             self._number_of_failed_records += 1
             await self.pushStatus()
+
+    def markLastSegment(self):
+        if self._last_segment_marker is None:
+            return
+        logger.warning(f"put last segment marker: {self._last_segment_marker!r}")
+        with open(f'{self._last_segment_marker}','w') as f:
+            f.write('')
 
     async def haltCommand(self):
         if self._proc is None:
