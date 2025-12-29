@@ -38,7 +38,7 @@ async def ingest_main():
     await http_service.stop()
 
 
-def loadroadmap_main():
+def download_roadmap_main():
     conf = config.Config()
     response = requests.get(f'{conf.ROADMAP_HACKMD_URL}')
     response.raise_for_status()
