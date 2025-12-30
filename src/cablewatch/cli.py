@@ -12,7 +12,7 @@ def make_synchrone(async_func):
     return inner
 
 
-class Canceller:
+class Aborter:
     def __init__(self):
         ev = asyncio.Event()
         loop = asyncio.get_running_loop()
@@ -21,12 +21,12 @@ class Canceller:
         self._interrupt_event = ev
 
     def onSignal(self):
-        logger.warning("cancelled by user (signal)")
+        logger.warning("aborted by user (UNIX signal)")
         ev = self._interrupt_event
         ev.set()
 
-    def cancel(self):
-        logger.error("cancelled from code (fatal)")
+    def abort(self):
+        logger.error("aborted from code")
         ev = self._interrupt_event
         ev.set()
 
@@ -38,12 +38,12 @@ class Canceller:
 @make_synchrone
 async def ingest_main():
     loghlp.setup()
-    canceller = Canceller()
+    aborter = Aborter()
     http_service = http.HTTPService()
-    ingest_service = ingest.IngestService(http_service=http_service, canceller=canceller)
+    ingest_service = ingest.IngestService(http_service=http_service, aborter=aborter)
     await http_service.start()
     await ingest_service.start()
-    await canceller.wait()
+    await aborter.wait()
     await ingest_service.stop()
     await http_service.stop()
 

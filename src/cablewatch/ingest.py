@@ -39,7 +39,7 @@ class IngestService:
     HLS_EXT_INF = '#EXTINF:'
     HLS_EXT_PROGDT = '#EXT-X-PROGRAM-DATE-TIME:'
 
-    def __init__(self, *, http_service, recording_requested=True, canceller=None):
+    def __init__(self, *, http_service, recording_requested=True, aborter=None):
         conf = config.Config()
         self._recording_requested = recording_requested
         cmd = self.COMMAND
@@ -59,7 +59,7 @@ class IngestService:
         self._number_of_launched_records = 0
         self._number_of_failed_records = 0
         self._drifts = []
-        self._canceller = canceller
+        self._aborter = aborter
         http_service.addDecoratedRoutes(self)
 
     async def start(self):
@@ -222,8 +222,8 @@ class IngestService:
             return
         logger.error("too many record/halt cycles at startup")
         self._background_task.cancel()
-        if self._canceller:
-            self._canceller.cancel()
+        if self._aborter:
+            self._aborter.abort()
         else:
             sys.exit(-1)
 
