@@ -1,6 +1,7 @@
 import asyncio
 import signal
 import requests
+import sys
 from loguru import logger
 from bs4 import BeautifulSoup
 from cablewatch import config, http, loghlp, ingest
@@ -58,3 +59,8 @@ def main_download_roadmap():
         raise AssertionError("Cannot find publish page")
     with open("ROADMAP.md", 'w') as f:
         f.write(div.get_text(strip=True))
+
+
+def main_timeline():
+    tool = ingest.IngestTimeLineTool(sys.argv)
+    tool()

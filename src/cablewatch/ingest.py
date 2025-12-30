@@ -5,16 +5,26 @@ import asyncio
 import re
 import textwrap
 import time
+import glob
+import json
+import argparse
+import tempfile
+import copy
 from datetime import datetime, timedelta
+from pytimeparse.timeparse import timeparse
 from loguru import logger
 from aiohttp import web,  WSCloseCode
 import psutil
+from rich import print
+from rich.table import Table
 from cablewatch import config
 from cablewatch.decorators import http_get
 
 
 SEGMENT_DURATION = 30
-SEGMENT_FORMAT = 'segment_%Y-%m-%d_%Hh%M-%Ss.ts'
+SEGMENT_DATETIME_FORMAT = '%Y-%m-%dT%Hh%Mm%S'
+SEGMENT_FORMAT = 'segment_{datetime}_{duration:.2f}s.ts'
+SEGMENT_PATTERN = r'^segment_(.+)_(.+)s\.ts(\.hole)?$'
 
 
 class IngestService:
@@ -138,12 +148,12 @@ class IngestService:
                     L = len(self.HLS_EXT_PROGDT)
                     dt = datetime.strptime(ln[L:], "%Y-%m-%dT%H:%M:%S.%f%z")
                     dt = dt - self.getDriftAverage()
-                    self._segment_filename = dt.strftime(SEGMENT_FORMAT)
+                    self._segment_filename = SEGMENT_FORMAT.format(datetime=dt.strftime(SEGMENT_DATETIME_FORMAT), duration=duration)
                     count += 1
                 if ln.startswith('segment_'):
                     logger.info(f'move {self._tmp_segment_filename!r} to {self._segment_filename!r}')
                     os.rename(self._tmp_segment_filename, self._segment_filename)
-                    self._last_segment_marker = self._segment_filename + '.last'
+                    self._hole_segment_marker = self._segment_filename + '.hole'
                     count += 1
             if count < 3:
                 raise AssertionError
@@ -155,7 +165,7 @@ class IngestService:
         for fn in os.listdir(dir):
             pth = f'{dir}/{fn}'
             if os.path.isfile(pth):
-                if fn.startswith('segment_'):
+                if fn.endswith('.ts') or fn.endswith('.concat'):
                     age = now - os.path.getmtime(pth)
                     if age >= 10 * 60: # 10 minutes
                         logger.info(f"remove old temp file 'tmp/{fn}'")
@@ -179,7 +189,7 @@ class IngestService:
         self._number_of_launched_records += 1
         self._tmp_segment_filename = None
         self._segment_filename = None
-        self._last_segment_marker = None
+        self._hole_segment_marker = None
         self._current_cmd_log_level = 'INFO'
         try:
             conf = config.Config()
@@ -207,7 +217,7 @@ class IngestService:
             returncode = await proc.wait()
             logger.log(self._current_cmd_log_level, f'command exits with returncode {returncode}')
         finally:
-            self.markLastSegment()
+            self.markHoleSegment()
             self._proc = None
             self._number_of_failed_records += 1
             await self.pushStatus()
@@ -227,11 +237,11 @@ class IngestService:
         else:
             sys.exit(-1)
 
-    def markLastSegment(self):
-        if self._last_segment_marker is None:
+    def markHoleSegment(self):
+        if self._hole_segment_marker is None:
             return
-        logger.warning(f"put last segment marker: {self._last_segment_marker!r}")
-        with open(f'{self._last_segment_marker}','w') as f:
+        logger.warning(f"put hole segment marker: {self._hole_segment_marker!r}")
+        with open(f'{self._hole_segment_marker}','w') as f:
             f.write('')
 
     def haltCommand(self):
@@ -323,3 +333,413 @@ class IngestService:
         sts = self.prepareStatus()
         for ws in self._status_websockets:
             await ws.send_json(sts)
+
+
+class IngestTimeLine:
+    NAME_PATTERN = r"^[A-Za-z0-9_-]+$"
+    PROTECTED_NAMES = set(['glob'])
+
+    @classmethod
+    def checkName(cls, name):
+        if not re.fullmatch(cls.NAME_PATTERN, name):
+            raise AssertionError(f'{name} is not a valid timeline name')
+
+    @classmethod
+    def loadNames(self):
+        EXT = '.json'
+        names = []
+        conf = config.Config()
+        for bn in os.listdir(f'{conf.INGEST_DATADIR}/timelines'):
+            if bn.endswith(EXT):
+                names.append(bn[:-len(EXT)])
+        return names
+
+    @classmethod
+    def loadInstances(cls):
+        instances = {}
+        instances['glob'] = IngestTimeLine(name='glob')
+        for name in cls.loadNames():
+            tl = IngestTimeLine(name=name)
+            instances[name] = tl
+        return instances
+
+    def __init__(self, *args, **kwargs):
+        self.init(*args,**kwargs)
+
+    def init(self, name, readonly=False, begin=None, duration=None, load=True):
+        self.checkName(name)
+        conf = config.Config()
+        all_segment_filenames = glob.glob(f"{conf.INGEST_DATADIR}/segment_*.ts*")
+        all_segment_filenames.sort()
+        segments = {}
+        for fn in all_segment_filenames:
+            seg = IngestSegment.fromFileName(fn)
+            segments[seg.begin] = seg
+        if len(segments) > 0:
+            first_seg = next(iter(segments.values()))
+            last_seg = next(reversed(segments.values()))
+        if begin is None:
+            if len(segments) > 0:
+                begin = first_seg.begin
+            else:
+                begin = datetime.combine(datetime.today(), datetime.min.time())
+        if duration is None:
+            if len(segments) > 0:
+                duration = last_seg.begin - first_seg.begin + last_seg.duration
+            else:
+                duration = timedelta(seconds=0)
+        if load and os.path.exists(f'{conf.INGEST_DATADIR}/timelines/{name}.json'):
+            with open(f'{conf.INGEST_DATADIR}/timelines/{name}.json', 'r') as f:
+                d = json.loads(f.read())
+            begin = datetime.fromisoformat(d['begin'])
+            duration = timedelta(seconds=d['duration'])
+        for seg in list(segments.values()):
+            if (seg.begin + seg.duration) < begin:
+                del segments[seg.begin]
+            elif seg.begin >= (begin + duration):
+                del segments[seg.begin]
+        if len(segments) > 0:
+            first_seg = next(iter(segments.values()))
+            last_seg = next(reversed(segments.values()))
+            end = (begin + duration)
+            seg_end =(last_seg.begin + last_seg.duration)
+            if begin > first_seg.begin:
+                first_seg.inpoint = begin - first_seg.begin
+            if seg_end > end:
+                last_seg.outpoint = last_seg.duration - (seg_end - end)
+        self._begin = begin
+        self._duration = duration
+        self._name = name
+        self._segments = segments
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def begin(self):
+        return self._begin
+
+    @property
+    def end(self):
+        return self._begin + self._duration
+
+    @property
+    def duration(self):
+        return self._duration
+
+    @property
+    def segments(self):
+        return copy.copy(self._segments)
+
+    def lookupSegmentFromTimestamp(self, timestamp):
+        for seg in self._segments.values():
+            if (seg.begin <= timestamp <= seg.end):
+                return seg
+        raise LookupError
+
+    def getNumberOfHoles(self):
+        num_holes = 0
+        for seg in self._segments.values():
+            if seg.hole:
+                num_holes += 1
+        return num_holes
+
+    def advance(self):
+        duration = self._duration
+        begin = self._begin + duration
+        self.init(self._name, begin=begin, duration=duration, load=False)
+
+    def reset(self):
+        duration = self._duration
+        begin = None
+        self.init(self._name, begin=begin, duration=duration, load=False)
+
+    def save(self):
+        name = self._name
+        if name in self.PROTECTED_NAMES:
+            raise AssertionError(f'timeline {name!r} cannot be altered')
+        conf = config.Config()
+        d = dict(
+            begin = self._begin.isoformat(),
+            duration = self._duration.total_seconds(),
+        )
+        with open(f'{conf.INGEST_DATADIR}/timelines/{name}.json', 'w') as f:
+            f.write(json.dumps(d))
+
+    def remove(self):
+        name = self._name
+        if name in self.PROTECTED_NAMES:
+            raise AssertionError(f'timeline {name!r} cannot be removed')
+        conf = config.Config()
+        os.remove(f'{conf.INGEST_DATADIR}/timelines/{name}.json')
+
+    def slices(self):
+        segments = []
+        for seg in self._segments.values():
+            segments.append(seg)
+            if seg.hole:
+                yield IngestTimeSlice(timeline=self, segments=segments)
+                segments = []
+        if len(segments):
+            yield IngestTimeSlice(timeline=self, segments=segments)
+
+
+class IngestSegment:
+    @staticmethod
+    def fromFileName(filename):
+        basename = os.path.basename(filename)
+        m = re.match(SEGMENT_PATTERN, basename)
+        if not m:
+            raise AssertionError(f'cannot parse segment filename: {basename!r}')
+        begin = datetime.strptime(m.group(1), SEGMENT_DATETIME_FORMAT)
+        duration = timedelta(seconds=float(m.group(2)))
+        if m.group(3):
+            hole = True
+            L = len(m.group(3))
+            basename = basename[:-L]
+            filename = filename[:-L]
+        else:
+            hole = False
+        return IngestSegment(filename=filename, basename=basename, begin=begin, duration=duration,
+            hole=hole)
+
+    def __init__(self, *,filename, basename, begin, duration, inpoint=None, outpoint=None, hole=False):
+        self.filename = filename
+        self.basename = basename
+        self.begin = begin
+        self.duration = duration
+        self.inpoint = inpoint
+        self.outpoint = outpoint
+        self.hole = hole
+
+    @property
+    def end(self):
+        return self.begin + self.duration
+
+    @property
+    def effective_duration(self):
+        duration = self.duration
+        if self.inpoint is None:
+            inpoint = timedelta(seconds=0)
+        else:
+            inpoint = self.inpoint
+        if self.outpoint is None:
+            outpoint = duration
+        else:
+            outpoint = self.outpoint
+        return outpoint - inpoint
+
+    def __repr__(self):
+        s = f'<{self.__class__.__name__} at {hex(id(self))}'
+        for k,v in self.__dict__.items():
+            s += f' {k}={v!r}'
+        s += '>'
+        return s
+
+
+class IngestTimeSlice:
+    def __init__(self, *, timeline, segments):
+        self._timeline = timeline
+        self._segments = copy.copy(segments)
+
+    @property
+    def segments(self):
+        return copy.copy(self._segments)
+
+    @property
+    def begin(self):
+        if len(self._segments) == 0:
+            raise AssertionError
+        first_seg = self._segments[0]
+        return first_seg.begin
+
+    @property
+    def end(self):
+        if len(self._segments) == 0:
+            raise AssertionError
+        last_seg = self._segments[-1]
+        return last_seg.begin + last_seg.duration
+
+    @property
+    def duration(self):
+        duration = timedelta(seconds=0)
+        for seg in self._segments:
+            duration += seg.duration
+        return duration
+
+    @property
+    def effective_duration(self):
+        duration = timedelta(seconds=0)
+        for seg in self._segments:
+            duration += seg.effective_duration
+        return duration
+
+    def generateConcatContent(self):
+        s = ''
+        for seg in self._segments:
+            s += f"file '{seg.filename}'\n"
+            if seg.inpoint:
+                s += f'inpoint {seg.inpoint.total_seconds()}\n'
+            if seg.outpoint:
+                s += f'outpoint {seg.outpoint.total_seconds()}\n'
+            s += '\n'
+        return s
+
+    def concatFile(self, *, delete=True):
+        conf = config.Config()
+        tl = self._timeline
+        f = tempfile.NamedTemporaryFile(dir=f"{conf.INGEST_DATADIR}/tmp/", prefix=f'{tl.name}_', suffix=".concat", mode='w', delete=delete)
+        content = self.generateConcatContent()
+        f.write(content)
+        f.flush()
+        return f
+
+
+TLTOOL_ACTIONS = {}
+
+
+def TLtool_action(*names):
+    def inner(obj):
+        for n in names:
+            TLTOOL_ACTIONS[n]=obj
+    return inner
+
+
+class IngestTimeLineTool:
+    class ArgumentParser(argparse.ArgumentParser):
+        def __init__(self):
+            actions = '|'.join(TLTOOL_ACTIONS)
+            super().__init__(usage=f'%(prog)s <{actions}> [timeline-names] <options>')
+            self.add_argument('-d','--duration', dest='duration', default="0s", help="set timeline duration")
+            self.add_argument('-s','--slice-index', dest='slice_index', default=None, type=int, help="set slice index")
+
+        def parse_args(self, args):
+            prog = args[0]
+            ns,args = super().parse_known_args(args[1:])
+            ns.prog = prog
+            ns.action = None
+            ns.largs = []
+            ns.rargs = []
+            xargs = ns.largs
+            for a in args:
+                if ns.action is None:
+                    if a not in TLTOOL_ACTIONS:
+                        self.error(f'invalid action {a!r}')
+                    else:
+                        ns.action = a
+                elif a == '--':
+                    xargs = ns.rargs
+                else:
+                    xargs.append(a)
+            if ns.action is None:
+                self.error('no action secified')
+            return ns
+
+    def __init__(self, args):
+        p = self.ArgumentParser()
+        self._ns = p.parse_args(args)
+        self._argparser = p
+
+    def __call__(self):
+        ns = self._ns
+        f = TLTOOL_ACTIONS[ns.action]
+        f(self)
+
+    @TLtool_action('rm','remove')
+    def remove(self):
+        ns = self._ns
+        for name in ns.largs:
+            self.ensureName(name, 'existing')
+            tl = IngestTimeLine(name=name)
+            tl.remove()
+
+    def getName(self, idx):
+        ns = self._ns
+        try:
+            name = ns.largs[idx]
+        except IndexError:
+            self.error('please specify a valid timeline name')
+        return name
+
+    def error(self, msg):
+        self._argparser.error(msg)
+
+    def ensureName(self, name, mode):
+        exists = (name in IngestTimeLine.loadNames()) or (name in IngestTimeLine.PROTECTED_NAMES)
+        if mode not in ('existing', 'not-existing'):
+            raise AssertionError
+        if exists and mode=='not-existing':
+            self.error(f'timeline {name!r} already exists')
+        if not exists and mode=='existing':
+            self.error(f'timeline {name!r} does not exist')
+
+    @TLtool_action('create')
+    def create(self):
+        ns = self._ns
+        name = self.getName(0)
+        self.ensureName(name, 'not-existing')
+        duration = timedelta(seconds=timeparse(ns.duration))
+        begin = None
+        tl = IngestTimeLine(name=name, begin=begin, duration=duration)
+        tl.save()
+
+    @TLtool_action('adv', 'advance')
+    def advance(self):
+        name = self.getName(0)
+        self.ensureName(name, 'existing')
+        tl = IngestTimeLine(name=name)
+        tl.advance()
+        tl.save()
+
+    @TLtool_action('reset')
+    def reset(self):
+        name = self.getName(0)
+        self.ensureName(name, 'existing')
+        tl = IngestTimeLine(name=name)
+        tl.reset()
+        tl.save()
+
+    @TLtool_action('ls','list')
+    def list(self):
+        table = Table()
+        table.add_column("NAME")
+        table.add_column("BEGIN")
+        table.add_column("END")
+        table.add_column("DURATION")
+        table.add_column("NUM_HOLES")
+        for name, tl in IngestTimeLine.loadInstances().items():
+            if tl.duration.total_seconds() == 0:
+                duration = "0s"
+            else:
+                duration = str(tl.duration)
+            table.add_row(name, tl.begin.isoformat(), tl.end.isoformat(), duration, f'{tl.getNumberOfHoles()}')
+        print(table)
+
+    @TLtool_action('sl','slices')
+    def slices(self):
+        table = Table()
+        headers = ["SLICE_ID/SEGMENT_BASENAME", "INPOINT", "OUTPOINT", "EFFECTIVE_DURATION"]
+        for hdr in headers:
+            table.add_column(hdr)
+        seprator = [''] * len(headers)
+        name = self.getName(0)
+        self.ensureName(name, 'existing')
+        tl = IngestTimeLine(name=name)
+        for i,slice in enumerate(tl.slices()):
+            table.add_row(*seprator)
+            table.add_row(f'[cyan]slice #{i}[/cyan]','','',f'[cyan]{slice.effective_duration}[/cyan]')
+            for seg in slice.segments:
+                table.add_row(seg.basename,f'{seg.inpoint}',f'{seg.outpoint}',f'{seg.effective_duration}')
+        print()
+        print(table)
+
+    @TLtool_action('concat')
+    def concat(self):
+        ns = self._ns
+        name = self.getName(0)
+        self.ensureName(name, 'existing')
+        tl = IngestTimeLine(name=name)
+        slice = list(tl.slices())[ns.slice_index]
+        content = slice.generateConcatContent()
+        print(content)
