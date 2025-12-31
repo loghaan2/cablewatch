@@ -11,7 +11,7 @@ Requirements
 
 .. code-block:: shell-session
 
-    $ sudo apt-get install ffmpeg yt-dlp
+    $ sudo apt-get install ffmpeg yt-dlp tesseract-ocr tesseract-ocr-fra
 
 
 
