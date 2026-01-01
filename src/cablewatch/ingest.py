@@ -234,7 +234,7 @@ class IngestService:
         with open(f'{self._last_segment_marker}','w') as f:
             f.write('')
 
-    async def haltCommand(self):
+    def haltCommand(self):
         if self._proc is None:
             return
         parent = psutil.Process(self._proc.pid)
@@ -242,7 +242,6 @@ class IngestService:
         for pid in [self._proc.pid] + [child.pid for child in children]:
             os.kill(pid, signal.SIGTERM)
         self._proc = None
-        await self.pushStatus()
 
     def runBackgroundTaskDone(self, future):
         if future.cancelled():
@@ -255,7 +254,7 @@ class IngestService:
         logger.info(message)
         for ws in list(self._status_websockets):
             await ws.close(code=WSCloseCode.GOING_AWAY, message=message)
-        await self.haltCommand()
+        self.haltCommand()
         if self._background_task is not None:
             self._background_task.cancel()
             try:
@@ -289,7 +288,8 @@ class IngestService:
                             self._recording_requested = False
                             await self.pushStatus()
                             self._current_cmd_log_level = 'INFO'
-                            await self.haltCommand()
+                            self.haltCommand()
+                            await self.pushStatus()
                             returned_msg = "ok"
                         else:
                             returned_msg = "state error: curently not recording"
