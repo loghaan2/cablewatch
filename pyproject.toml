@@ -31,3 +31,9 @@ build-backend = "poetry.core.masonry.api"
 cablewatch-ingest = "cablewatch.cli:main_ingest"
 cablewatch-download-roadmap = "cablewatch.cli:main_download_roadmap"
 cablewatch-timeline = "cablewatch.cli:main_timeline"
+
+# timeline examples
+cablewatch-tlex-play-slice = "cablewatch.cli:tlex_play_slice"
+cablewatch-tlex-detect-freeze-in-slices = "cablewatch.cli:tlex_detect_freeze_in_slices"
+cablewatch-tlex-apply-ocr-on-frames = "cablewatch.cli:tlex_apply_ocr_on_frames"
+cablewatch-tlex-process-slice-audio = "cablewatch.cli:tlex_process_slice_audio"
