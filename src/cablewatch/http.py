@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from aiohttp import web
 from loguru import logger
