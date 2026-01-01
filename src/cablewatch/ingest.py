@@ -148,7 +148,7 @@ class IngestService:
             if count < 3:
                 raise AssertionError
 
-    def removeOldTempSegments(self):
+    def cleanupTempFolder(self):
         conf = config.Config()
         now = time.time()
         dir = f'{conf.INGEST_DATADIR}/tmp'
@@ -158,7 +158,7 @@ class IngestService:
                 if fn.startswith('segment_'):
                     age = now - os.path.getmtime(pth)
                     if age >= 10 * 60: # 10 minutes
-                        logger.info(f"remove old temp segment 'tmp/{fn}'")
+                        logger.info(f"remove old temp file 'tmp/{fn}'")
                         os.remove(pth)
 
     async def readLineIssuedByCommand(self, stream):
@@ -201,7 +201,7 @@ class IngestService:
                 if log_level is not None:
                     logger.bind(name=f'[from-cmd]').log(log_level, line)
                 if i > 100:
-                    self.removeOldTempSegments()
+                    self.cleanupTempFolder()
                     i = 0
                 i += 1
             returncode = await proc.wait()
