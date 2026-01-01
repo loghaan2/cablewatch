@@ -36,7 +36,7 @@ class Aborter:
 
 
 @make_synchrone
-async def ingest_main():
+async def main_ingest():
     loghlp.setup()
     aborter = Aborter()
     http_service = http.HTTPService()
@@ -48,7 +48,7 @@ async def ingest_main():
     await http_service.stop()
 
 
-def download_roadmap_main():
+def main_download_roadmap():
     conf = config.Config()
     response = requests.get(f'{conf.ROADMAP_HACKMD_URL}')
     response.raise_for_status()
