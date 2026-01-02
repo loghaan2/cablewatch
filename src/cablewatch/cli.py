@@ -81,6 +81,21 @@ def main_timeline():
 TLEX_CROP = 'crop=890:54:68:ih-145'
 
 
+def tlex_extract_skeleton():
+    timeline = ingest.IngestTimeLine(name="skeleton", duration=timedelta(minutes=3))
+    try:
+        for i,slice in enumerate(timeline.slices()):
+            with slice.concatFile() as concat:
+                print(f'[red]* SLICE #{i} - begin={slice.begin} duration={slice.effective_duration}[/red]')
+                cmd = f'ffmpeg -f concat -safe 0 -i {concat.name}'
+                cmd += ' -f null -'
+                print(f'[red]* {cmd}[/red]')
+                subprocess.run(cmd, shell=True, check=True)
+    finally:
+        timeline.advance()
+        timeline.save()
+
+
 def tlex_play_slice():
     timeline_name = sys.argv[1]
     slice_index = int(sys.argv[2])
