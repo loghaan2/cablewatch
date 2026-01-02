@@ -244,7 +244,13 @@ class IngestService:
         with open(f'{self._hole_segment_marker}','w') as f:
             f.write('')
 
-    def haltCommand(self):
+    def requestRecording(self):
+        self._recording_requested = True
+
+    def requestHalt(self):
+        self._number_of_failed_records -= 1
+        self._recording_requested = False
+        self._current_cmd_log_level = 'INFO'
         if self._proc is None:
             return
         parent = psutil.Process(self._proc.pid)
@@ -264,7 +270,7 @@ class IngestService:
         logger.info(message)
         for ws in list(self._status_websockets):
             await ws.close(code=WSCloseCode.GOING_AWAY, message=message)
-        self.haltCommand()
+        self.requEsthalt()
         if self._background_task is not None:
             self._background_task.cancel()
             try:
@@ -287,18 +293,14 @@ class IngestService:
                 elif msg.type == web.WSMsgType.TEXT:
                     if msg.data == 'record':
                         if not self._recording_requested:
-                            self._recording_requested = True
+                            self.requestRecording()
                             await self.pushStatus()
                             returned_msg = "ok"
                         else:
                             returned_msg = "state error: curently recording"
                     elif msg.data == 'halt':
                         if self._recording_requested:
-                            self._number_of_failed_records -= 1
-                            self._recording_requested = False
-                            await self.pushStatus()
-                            self._current_cmd_log_level = 'INFO'
-                            self.haltCommand()
+                            self.requestHalt()
                             await self.pushStatus()
                             returned_msg = "ok"
                         else:

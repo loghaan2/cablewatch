@@ -12,7 +12,7 @@ import requests
 from rich import print
 from loguru import logger
 from bs4 import BeautifulSoup
-from cablewatch import config, http, loghlp, ingest
+from cablewatch import config, http, loghlp, ingest, scheduler
 
 
 def make_synchrone(async_func):
@@ -45,14 +45,17 @@ class Aborter:
 
 
 @make_synchrone
-async def main_ingest():
+async def main_services():
     loghlp.setup()
     aborter = Aborter()
     http_service = http.HTTPService()
     ingest_service = ingest.IngestService(http_service=http_service, aborter=aborter)
+    scheduler_service = scheduler.SchedulerService(ingest_service=ingest_service)
     await http_service.start()
     await ingest_service.start()
+    await scheduler_service.start()
     await aborter.wait()
+    await scheduler_service.stop()
     await ingest_service.stop()
     await http_service.stop()
 
