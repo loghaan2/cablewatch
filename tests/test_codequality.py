@@ -28,6 +28,7 @@ def collect_files(*, accept_patterns, reject_patterns=[]):
 PYTHON_ACCEPT_PATTERNS = [
     "src/cablewatch/*.py",
     "tests/*.py",
+    "docker/*.py",
 ]
 
 PYTHON_REJECT_PATTERNS = []

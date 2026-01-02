@@ -6,15 +6,54 @@
 ----------------
 
 
-Setup virtual environment
-=========================
+Setup local virtual environment
+===============================
 
 .. code-block:: shell-session
 
     $ pyenv install 3.13.9
     $ pyenv virtualenv 3.13.9 cablewatch
     $ pyenv activate cablewatch
-    (cablewatch) $ pip install [-e] .
+    (cablewatch) $ pip install -e .
+
+
+Setup development docker image
+==============================
+
+Build
+~~~~~
+
+.. code-block:: shell-session
+
+    $ python3 docker/build-devel.py
+    * docker build --build-arg UID=1000 --build-arg GID=1000 --build-arg USER=...
+    [+] Building 0.2s (13/13) FINISHED
+    => [internal] load build definition
+    (...)
+    => => naming to docker.io/library/cablewatch-devel
+    $
+
+
+Activate
+~~~~~~~~
+
+.. code-block:: shell-session
+
+    $ python3 docker/run-devel.py
+    * docker run -v /home:/home -v /home/loghaan/side-projects/cablewatch/.cache/docker-volumes/pyenv-versions:/customization/pyenv/versions --user 1000:1000 -it --rm --hostname cablewatch-devel0 cablewatch-devel
+    Creating virtualenv 'cablewatch'...
+    Looking in links: /tmp/tmpmuv3q3u0
+    Requirement already satisfied: pip in /customization/pyenv/versions/cablewatch/lib/python3.13/site-packages (25.3)
+    (cablewatch) $
+
+
+Setup virtual environment
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: shell-session
+
+    (cablewatch) $ pip install -e .
+
 
 
 Build the docs
