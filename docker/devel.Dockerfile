@@ -23,6 +23,8 @@ RUN apt-get update \
         mc \
         make \
         npm \
+        emacs \
+        tree \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
