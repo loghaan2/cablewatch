@@ -7,10 +7,13 @@ ARG PROJECT_DIR=/home/cablewatch-user/cablewatch
 
 RUN groupadd -g ${GID} ${USER} && useradd -m -u ${UID} -g ${GID} ${USER}
 
+ENV TZ=Europe/Paris
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        tzdata \
         bash-completion \
         ffmpeg \
         bash \
@@ -22,6 +25,8 @@ RUN apt-get update \
         npm \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN npm install -g wscat
 
