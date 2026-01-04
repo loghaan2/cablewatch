@@ -47,7 +47,7 @@ def setup():
 
     logger.add(
         f"{conf.LOGS_DIR}/ingest_{{time:YYYY-MM-DD}}_{{time:HH}}h{{time:mm}}.log",
-        rotation="07:00",
+        rotation="06:00",
         retention="100 days",
         level="INFO",
         colorize=False,
