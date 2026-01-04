@@ -25,7 +25,7 @@ Build
 
 .. code-block:: shell-session
 
-    $ python3 docker/build-devel.py
+    $ python3 src/cablewatch/scripts/build_docker_devel_image.py
     * docker build --build-arg UID=1000 --build-arg GID=1000 --build-arg USER=...
     [+] Building 0.2s (13/13) FINISHED
     => [internal] load build definition
@@ -39,8 +39,8 @@ Activate
 
 .. code-block:: shell-session
 
-    $ python3 docker/run-devel.py
-    * docker run -v /home:/home -v /home/loghaan/side-projects/cablewatch/.cache/docker-volumes/pyenv-versions:/customization/pyenv/versions --user 1000:1000 -it --rm --hostname cablewatch-devel0 cablewatch-devel
+    $ python3 src/cablewatch/scripts/run_docker_devel_image.py
+    * docker run -v /home:/home -v .../cablewatch/.cache/docker-volumes/pyenv-versions:/customization/pyenv/versions --user 1000:1000 -it --rm --hostname cablewatch-devel0 cablewatch-devel
     Creating virtualenv 'cablewatch'...
     Looking in links: /tmp/tmpmuv3q3u0
     Requirement already satisfied: pip in /customization/pyenv/versions/cablewatch/lib/python3.13/site-packages (25.3)

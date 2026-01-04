@@ -2,22 +2,21 @@
 
 import sys
 import os
-import pathlib
-
-
-PROJECT_DIR=pathlib.Path(__file__).parent.parent
 
 
 def main():
+    import _bootstrap_package
+    from cablewatch import config
+    conf = config.Config()
     cmd = [
         'docker', 'build',
         '--build-arg', f'UID={os.getuid()}',
         '--build-arg', f'GID={os.getgid()}',
         '--build-arg', f'USER={os.getenv("USER")}',
-        '--build-arg', f'PROJECT_DIR={PROJECT_DIR}',
-        '-f', f'{PROJECT_DIR}/docker/devel.Dockerfile',
+        '--build-arg', f'PROJECT_DIR={conf.PROJECT_DIR}',
+        '-f', f'{conf.PROJECT_DIR}/docker/devel.Dockerfile',
         '-t' 'cablewatch-devel',
-        f'{PROJECT_DIR}/docker/',
+        f'{conf.PROJECT_DIR}/docker/',
     ]
     cmd += sys.argv[1:]
     print(f'* {" ".join(cmd)}')

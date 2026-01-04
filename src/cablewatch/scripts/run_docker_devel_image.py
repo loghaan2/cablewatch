@@ -5,14 +5,14 @@ import os
 import pathlib
 
 
-PROJECT_DIR=pathlib.Path(__file__).parent.parent
-
-
 def main():
+    import _bootstrap_package
+    from cablewatch import config
+    conf = config.Config()
     cmd = [
         'docker', 'run',
         '-v', '/home:/home',
-        '-v', f'{PROJECT_DIR}/.cache/docker-volumes/pyenv-versions:/customization/pyenv/versions',
+        '-v', f'{conf.PROJECT_DIR}/.cache/docker-volumes/pyenv-versions:/customization/pyenv/versions',
         '--user', f'{os.getuid()}:{os.getgid()}',
         '-it', '--rm',
         '--hostname', 'cablewatch-devel0',
