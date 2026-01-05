@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 #Layout carre jaune : 
-# ffmpeg -i data/ingest/segment_2025-12-26_14h11-48s.ts -vf "crop=246:86:977:ih-0,fps=0.5" data/banners/frames/bandeau_%03d.png
+# ffmpeg -i data/ingest/segment_2025-12-26_14h11-48s.ts -vf "crop=240:84:977:ih-0,fps=0.5" data/banners/frames/bandeau_%03d.png
 
 #Layout carre noir :
 # ffmpeg -i data/ingest/segment_2025-12-26_14h11-48s.ts -vf "crop=906:50:60:ih-144,fps=0.5" data/banners/frames/bandeau_%03d.png
@@ -22,7 +22,34 @@ from pathlib import Path
 # Layou carre blanc interlocuteur: 
 # ffmpeg -i data/ingest/segment_2025-12-26_14h19-05s.ts -vf "crop=909:39:60:ih-190,fps=0.5" data/banners/frames/bandeau_%03d.png
 
-def extract_banners_in_folder(file: str, crop: str, middle_frame: float = None ):
+bannerss : list = [
+    {
+        "name": "blanche_actualite",
+        "crop": "crop=909:89:60:ih-0",
+        "freeze": "freezedetect=n=0.003:d=1",
+        "bg": "blanc",
+    },
+    {
+        "name": "carre_sujet",
+        "crop": "crop=906:50:60:ih-144",
+        "freeze": "freezedetect=n=0.005:d=3",
+        "bg": "noir",
+    },
+    {
+        "name": "carre_emission",
+        "crop": "crop=240:82:977:ih-0",
+        "freeze": "freezedetect=n=0.005:d=6",
+        "bg": "jaune",
+    },
+    {
+        "name": "blanche_interlocuteur",
+        "crop": "crop=909:39:60:ih-190",
+        "freeze": "freezedetect=n=0.005:d=3",
+        "bg": "blanc",
+    },
+]
+
+def extract_banners_in_folder(file: str, crop: str, type_banner: str, freeze_start: float = None, freeze_end: float = None,  middle_frame: float = None ):
     """
      Fonction qui permet d'extract les differentes bannieres de la vidéo
      crop: largeur:hauteur:x:y
@@ -34,7 +61,7 @@ def extract_banners_in_folder(file: str, crop: str, middle_frame: float = None )
      fps=0.5   # 1 image toutes les 2 secondes
      fps=2     # 2 images par seconde
     """
-    
+
     #Creation du dossier frames s'il n'existe pas
     if not os.path.exists("data/banners/frames"):
         logger.info(f" ✅ Crèation du dossier data/banners/frames")
@@ -51,14 +78,14 @@ def extract_banners_in_folder(file: str, crop: str, middle_frame: float = None )
     #Extration depuis le freeze
     else : 
         COMMAND = f"""
-        ffmpeg -y
+        ffmpeg -y  
         -ss {middle_frame} 
         -i data/ingest/segment_2025-12-26_14h11-48s.ts 
         -vf "{crop}"
         -frames:v 1  
-        data/banners/frames/bandeau_{middle_frame:.2f}.png
+        data/banners/frames/bandeau_{type_banner}_{freeze_start}_{middle_frame:.2f}_{freeze_end}.png
         """
-    
+     #ffmpeg -y
     cmd = COMMAND.replace('\n', ' ')
     cmd = cmd.strip()
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -72,7 +99,7 @@ def extract_banners_in_folder(file: str, crop: str, middle_frame: float = None )
                 break
             logger.info(line.decode('utf-8').strip())
 
-def detect_colors_banners (image_path ):
+def detect_colors_banners (image_path):
     #Lis mon image
     img = cv2.imread(image_path)
     #Converti en gris (gris -noir)
@@ -104,12 +131,28 @@ def filter_on_file (frames_dir="data/banners/frames"):
 
     return results
 
-def extract_timestmps_file (path: Path) -> float:
+def extract_info_file (path: Path, word: str = "start") -> float:
     """
     Extrait le timestamp depuis bandeau_XX.XX.png
     """
-    match = re.search(r"bandeau_([0-9.]+)\.png", path.name)
-    return float(match.group(1)) if match else float("inf")
+    # match = re.search(r"bandeau_([0-9.]+)\.png", path.name)
+ 
+    path = path.stem
+     
+    
+    # On split par "_"
+    parts = path.split("_")  
+    # On récupère 
+    type_banner = parts[2]
+    start = float(parts[3])
+    end = float(parts[5])
+
+    if word == "start":
+        return start
+    if word == "end":
+        return end
+    else:
+        return type_banner
     
 def clean_ocr_text(text: str) -> str:
     text = text.replace('\n', ' ')
@@ -117,20 +160,23 @@ def clean_ocr_text(text: str) -> str:
     return " ".join(text.split())
 
 
-def write_csv():
+def write_csv(type_banner: str) :
     
     if not os.path.exists("data/banners/csv"):
         os.makedirs("data/banners/csv", exist_ok=True)
         
     frames = sorted(
     Path("data/banners/frames").glob("*.png"),
-    key=extract_timestmps_file
+    key=extract_info_file
         )
+    
+   
     
     with open("data/banners/csv/banners_segment_2025-12-26_14h11-48s.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Name File", "segment_2025-12-26_14h11-48s"])
-        writer.writerow(["filename", "timestamp", "text"])
+        writer.writerow(["filename_frame", "name_banner", "time_star", "time_end","text"])
+        
         
         # img = cv2.imread("data/banners/frames/bandeau_13.00.png")
         for img_path in frames:
@@ -147,14 +193,15 @@ def write_csv():
             # print(gray)
             
             # Calcul de l'intensité moyenne de gris 
-            # mean_intensity = gray.mean()
+            mean_intensity = gray.mean()
             
-            # if mean_intensity < 127:
-            #     # Texte clair sur fond sombre (banniere noire)
-            #     _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-            # else:
-            #     # Texte sombre sur fond clair (banniere blanche)
-            #     _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
+            #Revoir le traitement de contrate different texte
+            if mean_intensity < 127:
+                # Texte clair sur fond sombre (banniere noire)
+                _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+            else:
+                # Texte sombre sur fond clair (banniere blanche)
+                _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
             
             # Texte clair sur fond sombre (banniere noire)
             # _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
@@ -172,9 +219,14 @@ def write_csv():
             raw_text = pytesseract.image_to_string(thresh, lang='fra')  # 'fra' pour français
             clean_text = clean_ocr_text(raw_text)
             print(f"{img_path} - Texte détecté:", clean_text)
+             
+           
+
             writer.writerow([
                 img_path,
-                extract_timestmps_file(img_path),
+                extract_info_file(img_path, "type_banner"),
+                extract_info_file(img_path, "start"),
+                extract_info_file(img_path, "end"),
                 clean_text
             ])
     
@@ -195,91 +247,78 @@ def main ():
     #     logger.warning(f"Image non conforme, ratio de pixels noirs : {num:.2%}")
     
     
-    COMMAND = """
-    ffmpeg -i 
-    data/ingest/segment_2025-12-26_14h11-48s.ts
-    -vf "crop=909:89:60:ih-0,fps=0.5,freezedetect=n=0.005:d=3"
-    -f null -
-    """
-    cmd = COMMAND.replace('\n', ' ')
-    cmd = cmd.strip()
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    freezes = []
-    freeze_start = None
-    freeze_duration = None
-    reg_start = re.compile(r"freeze_start:\s*([0-9.]+)")
-    reg_duration = re.compile(r"freeze_duration:\s*([0-9.]+)")
+    for type_banner in bannerss:
+        print(type_banner)
+        logger.info(f"Processing banner layout: {type_banner['name']} with crop: {type_banner['crop']}")
+        COMMAND = f"""
+        ffmpeg -i 
+        data/ingest/segment_2025-12-26_14h11-48s.ts
+        -vf "{type_banner['crop']},fps=0.5,{type_banner['freeze']}"
+        -f null -
+        """
+        cmd = COMMAND.replace('\n', ' ')
+        cmd = cmd.strip()
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        freezes = []
+        freeze_start = None
+        freeze_end = None
+        freeze_duration = None
+        reg_start = re.compile(r"freeze_start:\s*([0-9.]+)")
+        reg_end = re.compile(r"freeze_end:\s*([0-9.]+)")
+        reg_duration = re.compile(r"freeze_duration:\s*([0-9.]+)")
 
-    while True:
-        line = p.stdout.readline()
-        if not line:
-            break
-        logger.info(line.decode('utf-8').strip())
-        if "freeze_start" in line.decode("utf-8").strip():
-            if reg_start.search(line.decode("utf-8").strip()):
-                freeze_start = float(reg_start.search(line.decode("utf-8").strip()).group(1))
-            # current_start = float(line.decode('utf-8').search("freeze_start: ([0-9.]+)", line).group(1))
-                print("❄️❄️ Freeze start detected:", freeze_start)
-                
-        if "freeze_duration" in line.decode("utf-8").strip():
-            if reg_duration.search(line.decode("utf-8").strip()):
-                freeze_duration = float(reg_duration.search(line.decode("utf-8").strip()).group(1))
-            # current_start = float(line.decode('utf-8').search("freeze_start: ([0-9.]+)", line).group(1))
-                print("❄️❄️ Freeze duration detected:", freeze_duration)
-                
-                if freeze_start is not None: 
-                    middle_freeze = freeze_start + freeze_duration / 2
-                    # logger.info(f"🎯 Middle Frame for OCR à t={middle_freeze:.2f}s")
-                    print(f"🎯 Middle Frame for OCR à t={middle_freeze:.2f}s")
-                    
-                    
-                    # EXTRA_COMMAND = f"""
-                    # ffmpeg -y
-                    # -ss {middle_freeze} 
-                    # -i data/ingest/segment_2025-12-26_14h11-48s.ts 
-                    # -vf "crop=906:50:60:ih-144"
-                    # -frames:v 1  
-                    # data/banners/frames/bandeau_{middle_freeze:.2f}.png
-                    # """
+        while True:
+            line = p.stdout.readline()
+            if not line:
+                break
+            logger.info(line.decode('utf-8').strip())
+            
+            if "freeze_start" in line.decode("utf-8").strip():
+                if reg_start.search(line.decode("utf-8").strip()):
+                    freeze_start = float(reg_start.search(line.decode("utf-8").strip()).group(1))
+                # current_start = float(line.decode('utf-8').search("freeze_start: ([0-9.]+)", line).group(1))
+                    print("❄️❄️ Freeze start detected:", freeze_start)
+            
+            if "freeze_duration" in line.decode("utf-8").strip():
+                if reg_duration.search(line.decode("utf-8").strip()):
+                    freeze_duration = float(reg_duration.search(line.decode("utf-8").strip()).group(1))
+                # current_start = float(line.decode('utf-8').search("freeze_start: ([0-9.]+)", line).group(1))
+                    print("❄️❄️ Freeze duration detected:", freeze_duration)
                     
                 
-                    # extra_cmd = EXTRA_COMMAND.replace('\n', ' ')
-                    # extra_cmd = extra_cmd.strip()
-                    # p_extract = subprocess.Popen(extra_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                    # p_extract.wait()
-                    extract_banners_in_folder("data/ingest/segment_2025-12-26_14h11-48s", "crop=909:89:60:ih-0",middle_freeze )
-                    freeze_start = None
-                    freeze_duration = None
-                    # while True:
-                    #     line = p_extract.stdout.readline()
-                    #     if not line:
-                    #         break
-                    #     logger.info(line.decode('utf-8').strip())
-                
+            if "freeze_end" in line.decode("utf-8").strip():
+                if reg_end.search(line.decode("utf-8").strip()):
+                    freeze_end = float(reg_end.search(line.decode("utf-8").strip()).group(1))
+                # current_start = float(line.decode('utf-8').search("freeze_start: ([0-9.]+)", line).group(1))
+                    print("❄️❄️ Freeze end detected:", freeze_end)
                     
-                #Reset freeze 
- 
-                
-                
-                # logger.info("Chargement des bannières...")
-                # extract_banners_in_folder("data/ingest/segment_2025-12-26_14h11-48s", "crop=906:50:60:ih-144,fps=1",middle_freeze )
-                # logger.info("✅ Extraction des bannières terminée.")
+                    if freeze_start is not None: 
+                        middle_freeze = freeze_start + freeze_duration / 2
+                        # logger.info(f"🎯 Middle Frame for OCR à t={middle_freeze:.2f}s")
+                        print(f"🎯 Middle Frame for OCR à t={middle_freeze:.2f}s")
+                        
+                        
+                      
+                        # p_extract.wait()
+                        extract_banners_in_folder("data/ingest/segment_2025-12-26_14h11-48s", type_banner['crop'], type_banner['name'], freeze_start, freeze_end, middle_freeze  )
+                        
+                        #Reset freeze
+                        freeze_start = None
+                        freeze_duration = None
+                        freeze_end =  None
                     
-                    # freeze_start = None
-                    # freeze_duration = None
-                
-    # extract_banners_in_folder("data/ingest/segment_2025-12-26_14h11-48s", "crop=906:50:60:ih-144,fps=1" )                    
-      
-    print("✅ Détection du timestamp freeze des bannières terminée.")
-    print("Détection bg color img")
-    banners = filter_on_file("frames")
+                        # logger.info("✅ Extraction des bannières terminée.")            
 
-    for b in banners:
-        print(b)
-    
-    print("✅ Détection bg color img")
-    
-    #test extration du texte 
-    write_csv()
+        print("✅ Détection du timestamp freeze des bannières terminée.")
+        # print("Détection bg color img")
+        # banners = filter_on_file("frames")
+
+        # for b in banners:
+        #     print(b)
+        
+        # print("✅ Détection bg color img")
+        
+        #Ecriture fichier CSV
+    write_csv(type_banner["name"])
 
     
