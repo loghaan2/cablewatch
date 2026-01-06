@@ -14,6 +14,7 @@ class Config:
     INGEST_YOUTUBE_STREAM_URL = 'https://www.youtube.com/watch?v=Z-Nwo-ypKtM'
     PROJECT_DIR = f"{str(pathlib.Path(__file__).parent.parent.parent)}"
     YT_DLP_EXTRA_ARGS = ''
+    TIMEZONE = 'Europe/Paris'
 
     def __init__(self):
         if self.__class__._state is not None:

@@ -16,6 +16,7 @@ def main():
         '--user', f'{os.getuid()}:{os.getgid()}',
         '-it', '--rm',
         '--hostname', 'cablewatch-devel0',
+        '-e', f'TZ={conf.TIMEZONE}',
         'cablewatch-devel',
     ] 
     cmd += sys.argv[1:]

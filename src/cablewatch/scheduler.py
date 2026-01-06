@@ -1,5 +1,6 @@
 from loguru import logger
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from cablewatch import config
 
 
 class SchedulerService:
@@ -7,7 +8,8 @@ class SchedulerService:
         self._ingest_service = ingest_service
 
     async def start(self):
-        sched = AsyncIOScheduler(timezone='Europe/Paris')
+        conf = config.Config()
+        sched = AsyncIOScheduler(timezone=conf.TIMEZONE)
         logger.info("sheduler service starting")
         sched.add_job(self.record, trigger="cron", hour=6, minute=25)
         sched.add_job(self.halt, trigger="cron", hour=0, minute=5)
