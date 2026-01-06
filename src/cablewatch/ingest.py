@@ -602,22 +602,26 @@ class IngestTimeSlice:
             duration += seg.effective_duration
         return duration
 
-    def generateConcatContent(self):
+    def generateConcatContent(self, *, with_inoutpoints=False):
         s = ''
+        if with_inoutpoints:
+            start_line =''
+        else:
+            start_line ='#'
         for seg in self._segments:
             s += f"file '{seg.filename}'\n"
             if seg.inpoint:
-                s += f'inpoint {seg.inpoint.total_seconds()}\n'
+                s += f'{start_line} inpoint {seg.inpoint.total_seconds()}\n'
             if seg.outpoint:
-                s += f'outpoint {seg.outpoint.total_seconds()}\n'
+                s += f'{start_line} outpoint {seg.outpoint.total_seconds()}\n'
             s += '\n'
         return s
 
-    def concatFile(self, *, delete=True):
+    def concatFile(self, *, delete=True, with_inoutpoints=False):
         conf = config.Config()
         tl = self._timeline
         f = tempfile.NamedTemporaryFile(dir=f"{conf.INGEST_DATADIR}/tmp/", prefix=f'{tl.name}_', suffix=".concat", mode='w', delete=delete)
-        content = self.generateConcatContent()
+        content = self.generateConcatContent(with_inoutpoints=with_inoutpoints)
         f.write(content)
         f.flush()
         return f
