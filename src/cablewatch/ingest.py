@@ -10,6 +10,7 @@ import json
 import argparse
 import tempfile
 import copy
+import shlex
 from datetime import datetime, timedelta
 from pytimeparse.timeparse import timeparse
 from loguru import logger
@@ -467,6 +468,11 @@ class IngestTimeLine:
         begin = None
         self.init(self._name, begin=begin, duration=duration, load=False)
 
+    def rename(self, name):
+        duration = self._duration
+        begin = self._begin
+        self.init(name, begin=begin, duration=duration, load=False)
+
     def save(self):
         name = self._name
         if name in self.PROTECTED_NAMES:
@@ -709,6 +715,26 @@ class IngestTimeLineTool:
         tl = IngestTimeLine(name=name)
         tl.reset()
         tl.save()
+
+    @TLtool_action('cp','copy')
+    def copy(self):
+        src_name = self.getName(0)
+        dst_name = self.getName(1)
+        self.ensureName(src_name, 'existing')
+        self.ensureName(dst_name, 'not-existing')
+        tl = IngestTimeLine(name=src_name)
+        tl.rename(dst_name)
+        tl.save()
+
+    @TLtool_action('ed','edit')
+    def edit(self):
+        name = self.getName(0)
+        tl = IngestTimeLine(name=name)
+        tl.save()
+        cmd = f"{os.getenv('EDITOR')} {tl.getJSONFilename()}"
+        cmd = shlex.split(cmd)
+        os.execvp(cmd[0],cmd)
+        raise AssertionError('execvp() failed')
 
     @TLtool_action('ls','list')
     def list(self):

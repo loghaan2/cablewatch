@@ -2,6 +2,7 @@ docs/build/
 data/ingest/tmp/segment_*.ts
 data/ingest/tmp/*.concat
 data/ingest/timelines/*.json
+data/ingest/timelines/*.json~
 data/ingest/segment_*.ts
 data/ingest/segment_*.ts.hole
 data/ingest/tmp/*.m3u8
