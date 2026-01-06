@@ -36,7 +36,7 @@ def setup():
     logger.remove()
     logger.configure(extra={"name": ""})
 
-    format = "<green>{time:HH:mm:ss}</green> <level>{level}</level> <light-cyan>{name}</light-cyan><cyan>{extra[name]}</cyan> {message}"
+    format = "<green>{time:YYYY-MM-DD} {time:HH:mm:ss}</green> <level>{level}</level> <light-cyan>{name}</light-cyan><cyan>{extra[name]}</cyan> {message}"
 
     logger.add(
         lambda msg: print(msg, end=""),
