@@ -562,6 +562,13 @@ class IngestTimeSlice:
         self._timeline = timeline
         self._segments = copy.copy(segments)
         self._last = False
+        assert len(self._segments) > 0
+        if len(self._segments) >= 2:
+            assert self._segments[0].outpoint is None
+            assert self._segments[-1].inpoint is None
+            for seg in self._segments[1:-1]:
+                assert seg.outpoint is None
+                assert seg.inpoint is None
 
     def setLast(self):
         self._last = True
@@ -601,6 +608,14 @@ class IngestTimeSlice:
         for seg in self._segments:
             duration += seg.effective_duration
         return duration
+
+    @property
+    def first_inpoint(self):
+        return self._segments[0].inpoint
+
+    @property
+    def last_outpoint(self):
+        return self._segments[-1].outpoint
 
     def generateConcatContent(self, *, with_inoutpoints=False):
         s = ''
