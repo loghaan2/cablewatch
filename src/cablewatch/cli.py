@@ -29,15 +29,20 @@ class Aborter:
             loop.add_signal_handler(sig, self.onSignal)
         self._interrupt_event = ev
 
-    def onSignal(self):
-        logger.warning("aborted by user (UNIX signal)")
+    def wakeup(self):
+        loop = asyncio.get_running_loop()
         ev = self._interrupt_event
         ev.set()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.remove_signal_handler(sig)
+
+    def onSignal(self):
+        logger.warning("aborted by user (UNIX signal)")
+        self.wakeup()
 
     def abort(self):
         logger.error("aborted from code")
-        ev = self._interrupt_event
-        ev.set()
+        self.wakeup()
 
     async def wait(self):
         ev = self._interrupt_event
