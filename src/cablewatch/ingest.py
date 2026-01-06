@@ -492,14 +492,17 @@ class IngestTimeLine:
 
     def slices(self):
         segments = []
+        slices_ = []
         for seg in self._segments.values():
             segments.append(seg)
             if seg.hole:
-                yield IngestTimeSlice(timeline=self, segments=segments)
+                slices_.append(IngestTimeSlice(timeline=self, segments=segments))
                 segments = []
         if len(segments):
-            yield IngestTimeSlice(timeline=self, segments=segments)
-
+            slices_.append(IngestTimeSlice(timeline=self, segments=segments))
+        if len(slices_):
+            slices_[-1].setLast()
+        return slices_
 
 class IngestSegment:
     @staticmethod
@@ -558,6 +561,14 @@ class IngestTimeSlice:
     def __init__(self, *, timeline, segments):
         self._timeline = timeline
         self._segments = copy.copy(segments)
+        self._last = False
+
+    def setLast(self):
+        self._last = True
+
+    @property
+    def last(self):
+        return self._last
 
     @property
     def segments(self):
