@@ -25,6 +25,8 @@ dependencies = [
     "ruff (>=0.14.10,<0.15.0)",
     "yt-dlp (==2025.12.08)",
     "apscheduler (>=3.11.2,<4.0.0)",
+    "google-cloud-storage (>=3.7.0,<4.0.0)",
+    "google-cloud-speech (>=2.35.0,<3.0.0)",
     "duckdb (>=1.4.3,<2.0.0)",
 ]
 
@@ -37,6 +39,7 @@ build-backend = "poetry.core.masonry.api"
 cablewatch-services = "cablewatch.cli:main_services"
 cablewatch-download-roadmap = "cablewatch.cli:main_download_roadmap"
 cablewatch-timeline = "cablewatch.cli:main_timeline"
+cablewatch-speech = "cablewatch.speech:main"
 
 # timeline examples
 cablewatch-tlex-extract-skeleton = "cablewatch.cli:tlex_extract_skeleton"
