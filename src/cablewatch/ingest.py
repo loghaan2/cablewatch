@@ -371,8 +371,14 @@ class IngestTimeLine:
     def __init__(self, *args, **kwargs):
         self.init(*args,**kwargs)
 
+    def getJSONFilename(self):
+        conf = config.Config()
+        name = self._name
+        return f'{conf.INGEST_DATADIR}/timelines/{name}.json'
+
     def init(self, name, readonly=False, begin=None, duration=None, load=True):
         self.checkName(name)
+        self._name = name
         conf = config.Config()
         all_segment_filenames = glob.glob(f"{conf.INGEST_DATADIR}/segment_*.ts*")
         all_segment_filenames.sort()
@@ -393,8 +399,8 @@ class IngestTimeLine:
                 duration = last_seg.begin - first_seg.begin + last_seg.duration
             else:
                 duration = timedelta(seconds=0)
-        if load and os.path.exists(f'{conf.INGEST_DATADIR}/timelines/{name}.json'):
-            with open(f'{conf.INGEST_DATADIR}/timelines/{name}.json', 'r') as f:
+        if load and os.path.exists(self.getJSONFilename()):
+            with open(self.getJSONFilename(), 'r') as f:
                 d = json.loads(f.read())
             begin = datetime.fromisoformat(d['begin'])
             duration = timedelta(seconds=d['duration'])
@@ -414,7 +420,6 @@ class IngestTimeLine:
                 last_seg.outpoint = last_seg.duration - (seg_end - end)
         self._begin = begin
         self._duration = duration
-        self._name = name
         self._segments = segments
 
     @property
@@ -464,20 +469,18 @@ class IngestTimeLine:
         name = self._name
         if name in self.PROTECTED_NAMES:
             raise AssertionError(f'timeline {name!r} cannot be altered')
-        conf = config.Config()
         d = dict(
             begin = self._begin.isoformat(),
             duration = self._duration.total_seconds(),
         )
-        with open(f'{conf.INGEST_DATADIR}/timelines/{name}.json', 'w') as f:
-            f.write(json.dumps(d))
+        with open(self.getJSONFilename(), 'w') as f:
+            f.write(json.dumps(d) + '\n')
 
     def remove(self):
         name = self._name
         if name in self.PROTECTED_NAMES:
             raise AssertionError(f'timeline {name!r} cannot be removed')
-        conf = config.Config()
-        os.remove(f'{conf.INGEST_DATADIR}/timelines/{name}.json')
+        os.remove(self.getJSONFilename())
 
     def slices(self):
         segments = []
