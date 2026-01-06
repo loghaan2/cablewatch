@@ -156,7 +156,8 @@ class IngestService:
                     self._hole_segment_marker = self._segment_filename + '.hole'
                     count += 1
             if count < 3:
-                raise AssertionError
+                if self._recording_requested:
+                    raise AssertionError
 
     def cleanupTempFolder(self):
         conf = config.Config()
