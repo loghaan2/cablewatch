@@ -269,9 +269,11 @@ class IngestService:
     async def stop(self):
         message = "stopping ingest service"
         logger.info(message)
+        self.requestHalt()
+        await self.pushStatus()
         for ws in list(self._status_websockets):
             await ws.close(code=WSCloseCode.GOING_AWAY, message=message)
-        self.requEsthalt()
+        await asyncio.sleep(1)
         if self._background_task is not None:
             self._background_task.cancel()
             try:
