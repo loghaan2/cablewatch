@@ -196,7 +196,7 @@ class IngestService:
             conf = config.Config()
             os.chdir(f"{conf.INGEST_DATADIR}")
             proc = await asyncio.create_subprocess_shell(self._command,
-                stdin = asyncio.subprocess.PIPE,
+                stdin = asyncio.subprocess.DEVNULL,
                 stdout = asyncio.subprocess.PIPE,
                 stderr = asyncio.subprocess.STDOUT,
             )
