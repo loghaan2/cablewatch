@@ -5,6 +5,7 @@ data/ingest/timelines/*.json
 data/ingest/segment_*.ts
 data/ingest/segment_*.ts.hole
 data/ingest/tmp/*.m3u8
+data/database.duckdb
 logs/ingest_*.log
 src/cablewatch/__pycache__/
 src/cablewatch/scripts/__pycache__/

@@ -23,10 +23,14 @@ RUN apt-get update \
         npm \
         emacs \
         tree \
+        unzip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g wscat
+
+RUN curl https://install.duckdb.org/v1.4.3/duckdb_cli-linux-amd64.zip | funzip > /usr/local/bin/duckdb
+RUN chmod +x /usr/local/bin/duckdb
 
 USER ${USER}
 WORKDIR /customization
