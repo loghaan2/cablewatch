@@ -456,11 +456,9 @@ class IngestTimeLine:
                 num_holes += 1
         return num_holes
 
-    def advance(self, *, truncate=None):
-        if truncate is None:
-            truncate = timedelta(seconds=0)
-        duration = self._duration + truncate
-        begin = self._begin + duration - truncate
+    def advance(self):
+        duration = self._duration
+        begin = self._begin + duration
         self.init(self._name, begin=begin, duration=duration, load=False)
 
     def reset(self):
