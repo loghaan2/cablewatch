@@ -16,7 +16,7 @@ from pytimeparse.timeparse import timeparse
 from loguru import logger
 from aiohttp import web,  WSCloseCode
 import psutil
-from rich import print
+from rich import print as rich_print
 from rich.table import Table
 from cablewatch import config
 from cablewatch.decorators import http_get
@@ -780,7 +780,7 @@ class IngestTimeLineTool:
             else:
                 duration = str(tl.duration)
             table.add_row(name, tl.begin.isoformat(), tl.end.isoformat(), duration, f'{tl.getNumberOfHoles()}')
-        print(table)
+        rich_print(table)
 
     @TLtool_action('sl','slices')
     def slices(self):
@@ -798,7 +798,7 @@ class IngestTimeLineTool:
             for seg in slice.segments:
                 table.add_row(seg.basename,f'{seg.inpoint}',f'{seg.outpoint}',f'{seg.effective_duration}')
         print()
-        print(table)
+        rich_print(table)
 
     @TLtool_action('concat')
     def concat(self):
