@@ -12,8 +12,9 @@ class SchedulerService:
         conf = config.Config()
         sched = AsyncIOScheduler(timezone=conf.TIMEZONE)
         logger.info("scheduler service starting")
-        sched.add_job(self.record, trigger="cron", hour=6, minute=25)
-        sched.add_job(self.halt, trigger="cron", hour=0, minute=5)
+        # sched.add_job(self.ingest_record, trigger="cron", hour=6, minute=25)
+        # sched.add_job(self.ingest_halt, trigger="cron", hour=0, minute=5)
+        # sched.add_job(self.speech_upload, trigger="cron", minute='*/2')
         sched.start()
         self._sched = sched
         logger.info("scheduler service started")
