@@ -691,6 +691,7 @@ def TLtool_action(*names):
     def inner(obj):
         for n in names:
             TLTOOL_ACTIONS[n]=obj
+        return obj
     return inner
 
 
