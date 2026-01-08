@@ -1,6 +1,8 @@
 import asyncio
 import signal
 import requests
+
+from pathlib import Path
 from loguru import logger
 from bs4 import BeautifulSoup
 from cablewatch import config, http, loghlp, ingest, banners
@@ -50,4 +52,9 @@ def loadroadmap_main():
         f.write(div.get_text(strip=True))
 
 def extract_banners_main():
-    banners.main()
+    
+    #Test en local - Path des vidéos
+    path_file_video = Path("data/ingest").glob("*.ts") 
+    
+    for path_video in path_file_video:
+        banners.main(path_video)
