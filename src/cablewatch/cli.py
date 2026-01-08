@@ -49,11 +49,11 @@ async def main_services():
     ingest_service = ingest.IngestService(http_service=http_service, aborter=aborter)
     scheduler_service = scheduler.SchedulerService(ingest_service=ingest_service)
     await http_service.start()
-    await ingest_service.start()
     await scheduler_service.start()
+    await ingest_service.start()
     await aborter.wait()
-    await scheduler_service.stop()
     await ingest_service.stop()
+    await scheduler_service.stop()
     await http_service.stop()
     logger.complete()
 
