@@ -9,7 +9,7 @@ import fcntl
 from datetime import datetime, timedelta
 import wave
 import requests
-from rich import print
+from rich import print as rich_print
 from loguru import logger
 from bs4 import BeautifulSoup
 from cablewatch import config, http, loghlp, ingest, scheduler
@@ -94,10 +94,10 @@ def tlex_extract_skeleton():
     try:
         for i,slice in enumerate(timeline.slices()):
             with slice.concatFile() as concat:
-                print(f'[red]* SLICE #{i} - begin={slice.begin} duration={slice.effective_duration}[/red]')
+                rich_print(f'[red]* SLICE #{i} - begin={slice.begin} duration={slice.effective_duration}[/red]')
                 cmd = f'ffmpeg -f concat -safe 0 -i {concat.name}'
                 cmd += ' -f null -'
-                print(f'[red]* {cmd}[/red]')
+                rich_print(f'[red]* {cmd}[/red]')
                 subprocess.run(cmd, shell=True, check=True)
     finally:
         timeline.advance()
@@ -122,11 +122,11 @@ def tlex_detect_freeze_in_slices():
     unix_ts_fh = open(f'{timeline_name}-freezedetect.txt','w')
     for i,slice in enumerate(timeline.slices()):
         with slice.concatFile() as concat:
-            print(f'[red]* SLICE #{i}[/red]')
+            rich_print(f'[red]* SLICE #{i}[/red]')
             cmd = f'ffmpeg -f concat -safe 0 -i {concat.name}'
             cmd += f' -vf {TLEX_CROP},{freezedetect} '
             cmd += ' -f null -'
-            print(f'[red]* {cmd}[/red]')
+            rich_print(f'[red]* {cmd}[/red]')
             p = subprocess.Popen(
                 cmd,
                 shell = True,
@@ -143,7 +143,7 @@ def tlex_detect_freeze_in_slices():
                 ln = ln.decode()
                 if ln[-1] == '\n':
                     ln=ln[:-1]
-                print(ln)
+                rich_print(ln)
                 m = re.search(r'avfi.freezedetect.freeze_start: (.+)$', ln)
                 if m:
                     start = float(m.group(1))
@@ -161,7 +161,7 @@ def tlex_detect_freeze_in_slices():
                     unix_ts_fh.write(f'{unix_ts_mid}\n')
                     unix_ts_fh.flush()
                     fields = f"start={start:.2f} duration={duration:.2f}s ts_start='{ts_start}' ts_end='{ts_end}' ts_mid='{ts_mid}' unix_ts_mid={unix_ts_mid}"
-                    print(f'[red]* freeze detected: {fields}[/red]')
+                    rich_print(f'[red]* freeze detected: {fields}[/red]')
                     duration = 0
                     start = None
                     end = None
@@ -178,12 +178,12 @@ def tlex_apply_ocr_on_frames():
         cmd = f'ffmpeg -y -i {seg.filename} '
         cmd += f"-vf {TLEX_CROP} "
         cmd += f"-ss {offset} -vframes 1 frame_{unix_timestamp}.png"
-        print(f'[red]* {cmd}[/red]')
+        rich_print(f'[red]* {cmd}[/red]')
         subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         cmd = f"tesseract -l fra+eng frame_{unix_timestamp}.png -" # " hocr"
-        print(f'[red]* {cmd}[/red]')
+        rich_print(f'[red]* {cmd}[/red]')
         p = subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE)
-        print(f'[green]{p.stdout.decode()}[green]')
+        rich_print(f'[green]{p.stdout.decode()}[green]')
 
 
 def tlex_process_slice_audio():
@@ -200,7 +200,7 @@ def tlex_process_slice_audio():
         cmd += ' -af silencedetect=noise=-30dB:d=0.5'
         cmd += f' -vn -ac 1 -ar {sample_rate} -f wav '
         cmd += ' pipe:1 '
-        print(f'[red]* {cmd}[/red]')
+        rich_print(f'[red]* {cmd}[/red]')
         proc = subprocess.Popen(
             cmd,
             shell = True,
@@ -237,7 +237,7 @@ def tlex_process_slice_audio():
                         if ln.endswith(b'\n'):
                             ln = ln[:-1]
                         ln = ln.decode()
-                        print(ln)
+                        rich_print(ln)
                         m = re.search(r'silence_start: (.+)$', ln)
                         if m:
                             start = float(m.group(1))
@@ -246,14 +246,14 @@ def tlex_process_slice_audio():
                             end = float(m.group(1))
                             duration = float(m.group(2))
                         if start and duration and end:
-                            print(f'[red] silencedetect: #{count} start={start:.2f}s duration={duration:.2f}s end={end:.2f}s[/red]')
+                            rich_print(f'[red] silencedetect: #{count} start={start:.2f}s duration={duration:.2f}s end={end:.2f}s[/red]')
                             pos = int((start+duration/2) * sample_rate) * sample_width
                             cut_positions.append(pos)
                             duration = 0
                             start = None
                             end = None
                             count += 1
-                        print(ln)
+                        rich_print(ln)
                     else: # ffmpeg wav output
                         if wav_header is None:
                             wav_header = os.read(fd, 44)
