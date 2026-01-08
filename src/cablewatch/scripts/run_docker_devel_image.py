@@ -14,6 +14,7 @@ def main():
         '-v', '/home:/home',
         '-v', f'{conf.PROJECT_DIR}/.cache/docker-volumes/pyenv-versions:/customization/pyenv/versions',
         '--user', f'{os.getuid()}:{os.getgid()}',
+        '-p', f'0.0.0.0:{conf.WEB_PORT}:{conf.WEB_PORT}',
         '-it', '--rm',
         '--hostname', 'cablewatch-devel0',
         '-e', f'TZ={conf.TIMEZONE}',
