@@ -25,3 +25,7 @@ ROADMAP_HACKMD_URL = 'https://hackmd.io/...'
 #                                  keyrings are: basictext, gnomekeyring,
 #                                  kwallet, kwallet5, kwallet6
 #  --no-cookies-from-browser       Do not load cookies from browser (default)
+
+#GCP_PROJECT_ID = 'google_project_id'
+#GCP_SERVICE_ACCOUNT = '{PROJECT_DIR}/credentials/accousnt_service_key.json'
+#GCP_BUCKET_NAME = 'cablewatch-bucket'
