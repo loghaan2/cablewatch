@@ -44,6 +44,22 @@ def readline(fd):
             line += ch
 
 
+def find_longest_common_sublist(a, b):
+    max_len = 0
+    start_a = start_b = 0
+    for i in range(len(a)):
+        for j in range(len(b)):
+            k = 0
+            while i + k < len(a) and j + k < len(b) and a[i + k] == b[j + k]:
+                k += 1
+            if k > max_len:
+                max_len = k
+                start_a = i
+                start_b = j
+    return a[start_a:start_a + max_len], start_a, start_b
+
+
+
 class FloatRange:
     def __init__(self, min, max):
         self.min = min
@@ -74,13 +90,14 @@ class SpeechExtractor:
     SV2_MIN_SPEAKER = 1
     SV2_MAX_SPEAKER = 8
     TIMELINE_NAME = 'speech-extractor'
-    TIMELINE_DURATION = 120 #600
+    TIMELINE_DURATION = 100
+    TIMELINE_OVERLAP = 5
     WAV_SAMPLE_RATE = 16000
     WAV_SAMPLE_WIDTH = 2
     WAV_NUM_CHANNELS = 1 # mono
     WAV_HEADER_SIZE = 44
     WAV_CHUNK_SIZE = 256
-    WAV_BASENAME_FORMAT = '{datetime}_{pos_ms}ms.wav'
+    WAV_BASENAME_FORMAT = '{datetime}_{duration_ms}ms.wav'
     WAV_BASENAME_PATTERN = r'^(.+)_(.+)ms(\.wav)?$'
     DATETIME_FORMAT = "%Y%m%d_%Hh%Mm%S"
 
@@ -167,109 +184,112 @@ class SpeechExtractor:
             self.uploadWavFile(basename, wav_frames)
 
     def makeWavFromSlice(self, slice):
-        with slice.concatFile() as concat:
-            cmd = f'ffmpeg -f concat -safe 0 -i {concat.name}'
-            cmd += ' -af silencedetect=noise=-30dB:d=0.5'
-            cmd += f' -vn -ac {self.WAV_NUM_CHANNELS} -ar {self.WAV_SAMPLE_RATE} -f wav '
-            cmd += ' pipe:1 '
-            logger.info(f'run {cmd!r}')
-            proc = subprocess.Popen(
-                cmd,
-                shell = True,
-                stdin = subprocess.DEVNULL,
-                stdout = subprocess.PIPE,
-                stderr = subprocess.PIPE,
-            )
-            poller = select.poll()
-            active_fds = {proc.stdout.fileno(), proc.stderr.fileno()}
-            for fd in active_fds:
-                poller.register(fd, select.POLLIN | select.POLLHUP | select.POLLERR)
-            wav_buffer =b''
-            wav_header = None
-            start = None
-            end = None
-            duration = 0
-            possible_cut_positions = []
-            count = 0
-            wav_buffer_size = 0
-            relevant_bounds = [0, math.inf]
-            if slice.first_inpoint is not None:
-                relevant_bounds[0] = slice.first_inpoint.total_seconds()
-            if slice.last_outpoint is not None:
-                relevant_bounds[1] = (slice.duration - slice.last_outpoint).total_seconds()
-            relevant_bounds_nsamples = [self.secondsToNumSamples(relevant_bounds[0]), self.secondsToNumSamples(relevant_bounds[1])]
-            relevant_bounds = FloatRange(*relevant_bounds)
-            relevant_bounds_nsamples = FloatRange(*relevant_bounds_nsamples)
-            logger.info(f"relevant bounds for processing is {relevant_bounds}")
-            while len(active_fds) > 0:
-                for fd, ev in poller.poll():
-                    if ev & select.POLLERR:
-                        raise AssertionError
-                    elif ev & (select.POLLIN | select.POLLHUP):
-                        if fd == proc.stderr.fileno(): # ffmpeg log output
-                            ln = readline(fd)
-                            if len(ln) == 0:
-                                logger.info("ffmpeg log output EOF")
+        inputs_and_filter = slice.generateConcatFilterCommand(only='audio')
+        cmd = ['ffmpeg'] + inputs_and_filter
+        cmd += ['-vn', '-ac', f'{self.WAV_NUM_CHANNELS}', '-ar', f'{self.WAV_SAMPLE_RATE}', '-f', 'wav', 'pipe:1']
+        logger.info(f'run {" ".join(cmd)!r}')
+        proc = subprocess.Popen(
+            cmd,
+            shell = False,
+            stdin = subprocess.DEVNULL,
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE,
+        )
+        poller = select.poll()
+        active_fds = {proc.stdout.fileno(), proc.stderr.fileno()}
+        for fd in active_fds:
+            poller.register(fd, select.POLLIN | select.POLLHUP | select.POLLERR)
+        wav_buffer =b''
+        wav_header = None
+        start = None
+        end = None
+        duration = 0
+        #possible_cut_positions = []
+        count = 0
+        #wav_buffer_size = 0
+        # relevant_bounds = [0, math.inf]
+        # if slice.first_inpoint is not None:
+        #     relevant_bounds[0] = slice.first_inpoint.total_seconds()
+        # if slice.last_outpoint is not None:
+        #     relevant_bounds[1] = (slice.duration - slice.last_outpoint).total_seconds()
+        # relevant_bounds_nsamples = [self.secondsToNumSamples(relevant_bounds[0]), self.secondsToNumSamples(relevant_bounds[1])]
+        # relevant_bounds = FloatRange(*relevant_bounds)
+        # relevant_bounds_nsamples = FloatRange(*relevant_bounds_nsamples)
+        #logger.info(f"relevant bounds for processing is {relevant_bounds}")
+        while len(active_fds) > 0:
+            for fd, ev in poller.poll():
+                if ev & select.POLLERR:
+                    raise AssertionError
+                elif ev & (select.POLLIN | select.POLLHUP):
+                    if fd == proc.stderr.fileno(): # ffmpeg log output
+                        ln = readline(fd)
+                        if len(ln) == 0:
+                            logger.info("ffmpeg log output EOF")
+                            poller.unregister(fd)
+                            active_fds.remove(fd)
+                            break
+                        logger.info(ln)
+                        if ln.endswith('\n'):
+                            ln = ln[:-1]
+                        # m = re.search(r'silence_start: (.+)$', ln)
+                        # if m:
+                        #     start = float(m.group(1))
+                        # m = re.search(r'silence_end: (.+) \| silence_duration: (.+)$', ln)
+                        # if m:
+                        #     end = float(m.group(1))
+                        #     duration = float(m.group(2))
+                        # if start and duration and end:
+                        #     pos = start+duration/2
+                        #     logger.info(f'cut position #{count} at {pos:.2f}s is not relevant')
+                        # if pos in relevant_bounds:
+                        #     logger.info(f'possible cut position #{count} at {pos:.2f}s')
+                        #     possible_cut_positions.append(pos)
+                        # else:
+                        #     logger.info(f'cut position #{count} at {pos:.2f}s is not relevant')
+                        # duration = 0
+                        # start = None
+                        # end = None
+                        # count += 1
+                    else: # ffmpeg wav output
+                        if wav_header is None:
+                            wav_header = os.read(fd,self.WAV_HEADER_SIZE)
+                        else:
+                            wav_chunk = os.read(fd, self.WAV_CHUNK_SIZE)
+                            # wav_buffer_size += len(wav_chunk)
+                            # if wav_buffer_size not in relevant_bounds_nsamples:
+                            #     wav_chunk = bytes(len(wav_chunk))
+                            if len(wav_chunk) == 0:
+                                logger.info("ffmpeg wav output EOF")
                                 poller.unregister(fd)
                                 active_fds.remove(fd)
                                 break
-                            logger.info(ln)
-                            if ln.endswith('\n'):
-                                ln = ln[:-1]
-                            m = re.search(r'silence_start: (.+)$', ln)
-                            if m:
-                                start = float(m.group(1))
-                            m = re.search(r'silence_end: (.+) \| silence_duration: (.+)$', ln)
-                            if m:
-                                end = float(m.group(1))
-                                duration = float(m.group(2))
-                            if start and duration and end:
-                                pos = start+duration/2
-                                if pos in relevant_bounds:
-                                    logger.info(f'possible cut position #{count} at {pos:.2f}s')
-                                    possible_cut_positions.append(pos)
-                                else:
-                                    logger.info(f'cut position #{count} at {pos:.2f}s is not relevant')
-                                duration = 0
-                                start = None
-                                end = None
-                                count += 1
-                        else: # ffmpeg wav output
-                            if wav_header is None:
-                                wav_header = os.read(fd,self.WAV_HEADER_SIZE)
-                            else:
-                                wav_chunk = os.read(fd, self.WAV_CHUNK_SIZE)
-                                wav_buffer_size += len(wav_chunk)
-                                if wav_buffer_size not in relevant_bounds_nsamples:
-                                    wav_chunk = bytes(len(wav_chunk))
-                                if len(wav_chunk) == 0:
-                                    logger.info("ffmpeg wav output EOF")
-                                    poller.unregister(fd)
-                                    active_fds.remove(fd)
-                                    break
-                                wav_buffer += wav_chunk
+                            wav_buffer += wav_chunk
         tl = self._timeline
-        if len(possible_cut_positions) == 0:
-            truncate = False
-        elif not slice.last:
-            truncate = False
-        else:
-            truncate = True
-        truncate = False
-        if truncate:
-            pos = possible_cut_positions[-1]
-            wav_frames = wav_buffer[:self.secondsToNumSamples(pos)]
-        else:
-            pos = self.numSamplesToSeconds(wav_buffer_size)
-            wav_frames = wav_buffer
-        duration = self.numSamplesToSeconds(wav_buffer_size)
-        truncate = timedelta(seconds=duration-pos)
+        # if len(possible_cut_positions) == 0:
+        #     truncate = False
+        # elif not slice.last:
+        #     truncate = False
+        # else:
+        #     truncate = True
+        # truncate = False
+        # if truncate:
+        #     pos = possible_cut_positions[-1]
+        #     wav_frames = wav_buffer[:self.secondsToNumSamples(pos)]
+        # else:
+        #     pos = self.numSamplesToSeconds(wav_buffer_size)
+        #     wav_frames = wav_buffer
+        duration = self.numSamplesToSeconds(len(wav_buffer))
+        #truncate = timedelta(seconds=duration-pos)
         ns = self._ns
-        tl.advance(truncate=truncate)
+        #tl.advance(truncate=truncate)
+        #tl.save()
+
+        begin = tl.begin + timedelta(seconds=duration-self.TIMELINE_OVERLAP)
+        tl.init(tl.name, begin=begin, duration=duration, load=False)
         tl.save()
         logger.info(f'timeline after: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')
-        pos_ms = int(pos * 1000)
-        basename = self.WAV_BASENAME_FORMAT.format(datetime=slice.begin.strftime(self.DATETIME_FORMAT), pos_ms=pos_ms)
+        duration_ms = int(duration * 1000)
+        basename = self.WAV_BASENAME_FORMAT.format(datetime=slice.begin.strftime(self.DATETIME_FORMAT), duration_ms=duration_ms)
         size_m = (len(wav_frames) + self.WAV_HEADER_SIZE) / (1024*1024)
         logger.info(f'wav file made: basename={basename!r} pos={pos:.2f}s duration={duration:.2f}s truncate={truncate.total_seconds():.2f}s size={size_m:.2f}M')
         return basename, wav_frames
