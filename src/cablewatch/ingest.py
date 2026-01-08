@@ -641,6 +641,48 @@ class IngestTimeSlice:
         f.flush()
         return f
 
+    def generateConcatFilterCommand(self,*,only=None,shell=True):
+        cmd = []
+        filter = ""
+        if only is None:
+            audio = True
+            video = True
+        elif only == 'audio':
+            audio = True
+            video = False
+        elif only == 'video':
+            audio = False
+            video = True
+        for i,seg in enumerate(self._segments):
+            if video:
+                filter += f'[{i}:v]'
+            if audio:
+                filter += f'[{i}:a]'
+            if not seg.inpoint and not seg.outpoint:
+                cmd  += ['-i', seg.filename]
+            elif seg.inpoint and not seg.outpoint:
+                cmd += ['-ss', f'{seg.inpoint.total_seconds()}', '-i', seg.filename]
+            elif not seg.inpoint and seg.outpoint:
+                cmd += ['-t', f'{seg.outpoint.total_seconds()}', '-i', seg.filename]
+            elif seg.inpoint and seg.outpoint:
+                duration = seg.outpoint.total_seconds() - seg.inpoint.total_seconds()
+                if duration < 0:
+                    raise AssertionErrir
+                cmd += ['-ss', f'{seg.inpoint.total_seconds()}', '-t', f'{duration}', '-i', seg.filename]
+        filter += f'concat=n={len(self._segments)}:v={int(video)}:a={int(audio)}'
+        if video:
+            filter += '[outv]'
+        if audio:
+            filter += '[outa]'
+        cmd += ['-filter_complex', filter]
+        if video:
+            cmd += ['-map', '[outv]']
+        if audio:
+            cmd += ['-map', '[outa]']
+        if shell:
+            cmd =   shlex.join(cmd)
+        return cmd
+
 
 TLTOOL_ACTIONS = {}
 
@@ -659,6 +701,8 @@ class IngestTimeLineTool:
             super().__init__(usage=f'%(prog)s <{actions}> [timeline-names] <options>')
             self.add_argument('-d','--duration', dest='duration', default="0s", help="set timeline duration")
             self.add_argument('-s','--slice-index', dest='slice_index', default=None, type=int, help="set slice index")
+            self.add_argument('--audio', dest='only', default=None, action='store_const', const='audio', help="only audio")
+            self.add_argument('--video', dest='only', default=None, action='store_const', const='audio', help="only video")
 
         def parse_args(self, args):
             prog = args[0]
@@ -807,5 +851,5 @@ class IngestTimeLineTool:
         self.ensureName(name, 'existing')
         tl = IngestTimeLine(name=name)
         slice = list(tl.slices())[ns.slice_index]
-        content = slice.generateConcatContent()
-        print(content)
+        cmd = slice.generateConcatFilterCommand(only=ns.only)
+        print(cmd)
