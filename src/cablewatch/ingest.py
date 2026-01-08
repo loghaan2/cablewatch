@@ -639,7 +639,7 @@ class IngestTimeSlice:
         f.flush()
         return f
 
-    def generateConcatFilterCommand(self,*,only=None,shell=True):
+    def generateConcatFilterCommand(self,*,only=None,shell=False):
         cmd = []
         filter = ""
         if only is None:
@@ -678,7 +678,7 @@ class IngestTimeSlice:
         if audio:
             cmd += ['-map', '[outa]']
         if shell:
-            cmd =   shlex.join(cmd)
+            cmd = shlex.join(cmd)
         return cmd
 
 
