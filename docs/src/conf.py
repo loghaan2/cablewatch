@@ -2,7 +2,14 @@ import os
 
 SPHINX_BUILD = os.environ.get('SPHINX_BUILD')
 
-extensions = [ ]
+extensions = [
+    'myst_parser',
+]
+
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 master_doc = f'{SPHINX_BUILD}/index'
 

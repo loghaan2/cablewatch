@@ -20,6 +20,14 @@ dependencies = [
     "numpy (>=2.0.0)",
     "pytesseract (>=0.4.3,<0.5.0)",
     "rapidfuzz (>=3.14.3,<4.0.0)",
+    "myst-parser (>=4.0.1,<5.0.0)",
+    "tabulate (>=0.9.0,<0.10.0)",
+    "pytimeparse (>=1.1.8,<2.0.0)",
+    "rich (>=14.2.0,<15.0.0)",
+    "pytest (>=9.0.2,<10.0.0)",
+    "pytest-sugar (>=1.1.1,<2.0.0)",
+    "ruff (>=0.14.10,<0.15.0)",
+    "yt-dlp (==2025.12.08)",
 ]
 
 
@@ -31,3 +39,12 @@ build-backend = "poetry.core.masonry.api"
 cablewatch-ingest = "cablewatch.cli:ingest_main"
 cablewatch-loadroadmap = "cablewatch.cli:loadroadmap_main"
 cablewatch-extract-banners = "cablewatch.cli:extract_banners_main"
+cablewatch-download-roadmap = "cablewatch.cli:main_download_roadmap"
+cablewatch-timeline = "cablewatch.cli:main_timeline"
+
+# timeline examples
+cablewatch-tlex-extract-skeleton = "cablewatch.cli:tlex_extract_skeleton"
+cablewatch-tlex-play-slice = "cablewatch.cli:tlex_play_slice"
+cablewatch-tlex-detect-freeze-in-slices = "cablewatch.cli:tlex_detect_freeze_in_slices"
+cablewatch-tlex-apply-ocr-on-frames = "cablewatch.cli:tlex_apply_ocr_on_frames"
+cablewatch-tlex-process-slice-audio = "cablewatch.cli:tlex_process_slice_audio"

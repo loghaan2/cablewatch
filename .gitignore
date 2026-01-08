@@ -1,9 +1,13 @@
 docs/build/
-data/ingest/segment_*.ts
 data/ingest/tmp/segment_*.ts
+data/ingest/tmp/*.concat
+data/ingest/timelines/*.json
+data/ingest/segment_*.ts
+data/ingest/segment_*.ts.hole
 data/ingest/tmp/*.m3u8
 logs/ingest_*.log
 src/cablewatch/__pycache__/
 cablewatch-local.toml
 data/banners/*
 .python-version 
+tests/__pycache__/
