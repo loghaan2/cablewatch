@@ -1,6 +1,6 @@
 from loguru import logger
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from cablewatch import config
+from cablewatch import config, speech
 
 
 class SchedulerService:
@@ -25,10 +25,15 @@ class SchedulerService:
             sched.shutdown()
         logger.info("scheduler service stopped")
 
-    def record(self):
-        logger.warning("record requested by scheduler")
+    def ingest_record(self):
+        logger.warning("ingest record requested by scheduler")
         self._ingest_service.requestRecording()
 
-    def halt(self):
-        logger.warning("halt requested by scheduler")
+    def ingest_halt(self):
+        logger.warning("ingest halt requested by scheduler")
         self._ingest_service.requestHalt()
+
+    def speech_upload(self):
+        logger.warning("speech upload requested by scheduler")
+        se = speech.SpeechExtractor(keep=True)
+        se.upload()
