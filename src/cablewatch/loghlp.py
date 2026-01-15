@@ -36,7 +36,7 @@ def setup(fileoutput=False):
     logger.remove()
     logger.configure(extra={"name": ""})
 
-    format = "<green>{time:YYYY-MM-DD} {time:HH:mm:ss}</green> <level>{level}</level> <light-cyan>{name}</light-cyan><cyan>{extra[name]}</cyan> {message}"
+    format = "<green>{time:YYYYMMDD}_{time:HH}h{time:mm}m{time:ss}</green> <level>{level}</level> <light-cyan>{name}</light-cyan><cyan>{extra[name]}</cyan> {message}"
 
     logger.add(
         lambda msg: print(msg, end=""),
@@ -47,7 +47,7 @@ def setup(fileoutput=False):
 
     if fileoutput:
          logger.add(
-            f"{conf.LOGS_DIR}/ingest_{{time:YYYY-MM-DD}}_{{time:HH}}h{{time:mm}}.log",
+            f"{conf.LOGS_DIR}/{{time:YYYYMMDD}}_{{time:HH}}h{{time:mm}}.log",
             rotation="06:00",
             retention="100 days",
             level="INFO",
