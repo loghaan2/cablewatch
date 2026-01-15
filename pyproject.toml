@@ -36,8 +36,8 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [project.scripts]
-cablewatch-services = "cablewatch.cli:main_services"
-cablewatch-download-roadmap = "cablewatch.cli:main_download_roadmap"
-cablewatch-timeline = "cablewatch.cli:main_timeline"
+cablewatch-super = "cablewatch.super:main"
+cablewatch-download-roadmap = "cablewatch.scripts.download_roadmap:main"
+cablewatch-timeline = "cablewatch.ingest:timeline_tool_main"
 cablewatch-mister-proper = "cablewatch.scripts.mister_proper:main"
 cablewatch-speech = "cablewatch.speech:main"

@@ -703,6 +703,11 @@ def TLtool_action(*names):
     return inner
 
 
+def timeline_tool_main():
+    tool = IngestTimeLineTool(sys.argv)
+    tool()
+
+
 class IngestTimeLineTool:
     class ArgumentParser(argparse.ArgumentParser):
         def __init__(self):

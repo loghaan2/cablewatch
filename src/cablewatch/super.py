@@ -1,10 +1,7 @@
 import asyncio
 import signal
-import sys
-import requests
 from loguru import logger
-from bs4 import BeautifulSoup
-from cablewatch import config, http, loghlp, ingest, scheduler
+from cablewatch import http, loghlp, ingest, scheduler
 
 
 def make_synchrone(async_func):
@@ -42,7 +39,7 @@ class Aborter:
 
 
 @make_synchrone
-async def main_services():
+async def main():
     loghlp.setup(fileoutput=True)
     aborter = Aborter()
     http_service = http.HTTPService()
@@ -56,20 +53,3 @@ async def main_services():
     await scheduler_service.stop()
     await http_service.stop()
     logger.complete()
-
-
-def main_download_roadmap():
-    conf = config.Config()
-    response = requests.get(f'{conf.ROADMAP_HACKMD_URL}')
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "html.parser")
-    div = soup.find("div", id="publish-page")
-    if not div:
-        raise AssertionError("Cannot find publish page")
-    with open("ROADMAP.md", 'w') as f:
-        f.write(div.get_text(strip=True))
-
-
-def main_timeline():
-    tool = ingest.IngestTimeLineTool(sys.argv)
-    tool()
