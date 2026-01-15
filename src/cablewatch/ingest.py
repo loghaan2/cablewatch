@@ -23,10 +23,9 @@ from cablewatch.decorators import http_get
 
 
 SEGMENT_DURATION = 30
-SEGMENT_DATETIME_FORMAT = '%Y-%m-%dT%Hh%Mm%S'
-SEGMENT_FORMAT = 'segment_{datetime}_{duration:.2f}s.ts'
-SEGMENT_PATTERN = r'^segment_(.+)_(.+)s\.ts(\.hole)?$'
-
+SEGMENT_DATETIME_FORMAT = "%Y%m%d_%Hh%Mm%S"
+SEGMENT_FORMAT = 'segment_{datetime}_{duration_ms}ms.ts'
+SEGMENT_PATTERN = r'^segment_(.+)_(.+)ms\.ts(\.discont-after)?$'
 HLS_LIST_SIZE = 5
 
 class IngestService:
@@ -168,7 +167,7 @@ class IngestService:
                     logger.info(f'move {tmp_segment_filename!r} to {segment_filename!r}')
                     os.rename(tmp_segment_filename, segment_filename)
                     self._segment_filename = segment_filename
-                    self._hole_segment_marker = segment_filename + '.hole'
+                    self._discont_segment_marker = segment_filename + '.discont-after'
             expected_count_values = set(sorted(range(3, HLS_LIST_SIZE*3+1, 3)))
             if count not in expected_count_values:
                 if self._recording_requested:
@@ -205,7 +204,7 @@ class IngestService:
         self._record_start_time = datetime.today()
         self._number_of_launched_records += 1
         self._segment_filename = None
-        self._hole_segment_marker = None
+        self._discont_segment_marker = None
         self._current_cmd_log_level = 'INFO'
         try:
             conf = config.Config()
@@ -233,7 +232,7 @@ class IngestService:
             returncode = await proc.wait()
             logger.log(self._current_cmd_log_level, f'command exits with returncode {returncode}')
         finally:
-            self.markHoleSegment()
+            self.markDiscontinuity()
             self._proc = None
             self._number_of_failed_records += 1
             await self.pushStatus()
@@ -253,11 +252,11 @@ class IngestService:
         else:
             sys.exit(-1)
 
-    def markHoleSegment(self):
-        if self._hole_segment_marker is None:
+    def markDiscontinuity(self):
+        if self._discont_segment_marker is None:
             return
-        logger.warning(f"put hole segment marker: {self._hole_segment_marker!r}")
-        with open(f'{self._hole_segment_marker}','w') as f:
+        logger.warning(f"put discontinuity marker after segment: {self._discont_segment_marker!r}")
+        with open(f'{self._discont_segment_marker}','w') as f:
             f.write('')
 
     def requestRecording(self):
@@ -463,12 +462,12 @@ class IngestTimeLine:
                 return seg
         raise LookupError
 
-    def getNumberOfHoles(self):
-        num_holes = 0
+    def getNumberOfDiscontinuities(self):
+        num_discont = 0
         for seg in self._segments.values():
-            if seg.hole:
-                num_holes += 1
-        return num_holes
+            if seg.discontinuity_after:
+                num_discont += 1
+        return num_discont
 
     def advance(self):
         duration = self._duration
@@ -507,7 +506,7 @@ class IngestTimeLine:
         slices_ = []
         for seg in self._segments.values():
             segments.append(seg)
-            if seg.hole:
+            if seg.discontinuity_after:
                 slices_.append(IngestTimeSlice(timeline=self, segments=segments))
                 segments = []
         if len(segments):
@@ -524,25 +523,25 @@ class IngestSegment:
         if not m:
             raise AssertionError(f'cannot parse segment filename: {basename!r}')
         begin = datetime.strptime(m.group(1), SEGMENT_DATETIME_FORMAT)
-        duration = timedelta(seconds=float(m.group(2)))
+        duration = timedelta(seconds=float(m.group(2))/1000)
         if m.group(3):
-            hole = True
+            discontinuity_after = True
             L = len(m.group(3))
             basename = basename[:-L]
             filename = filename[:-L]
         else:
-            hole = False
+            discontinuity_after = False
         return IngestSegment(filename=filename, basename=basename, begin=begin, duration=duration,
-            hole=hole)
+            discontinuity_after=discontinuity_after)
 
-    def __init__(self, *,filename, basename, begin, duration, inpoint=None, outpoint=None, hole=False):
+    def __init__(self, *,filename, basename, begin, duration, inpoint=None, outpoint=None, discontinuity_after=False):
         self.filename = filename
         self.basename = basename
         self.begin = begin
         self.duration = duration
         self.inpoint = inpoint
         self.outpoint = outpoint
-        self.hole = hole
+        self.discontinuity_after = discontinuity_after
 
     @property
     def end(self):
@@ -822,13 +821,13 @@ class IngestTimeLineTool:
         table.add_column("BEGIN")
         table.add_column("END")
         table.add_column("DURATION")
-        table.add_column("NUM_HOLES")
+        table.add_column("NUM_DISCONTINUITIES")
         for name, tl in IngestTimeLine.loadInstances().items():
             if tl.duration.total_seconds() == 0:
                 duration = "0s"
             else:
                 duration = str(tl.duration)
-            table.add_row(name, tl.begin.isoformat(), tl.end.isoformat(), duration, f'{tl.getNumberOfHoles()}')
+            table.add_row(name, tl.begin.isoformat(), tl.end.isoformat(), duration, f'{tl.getNumberOfDiscontinuities()}')
         rich_print(table)
 
     @TLtool_action('sl','slices')

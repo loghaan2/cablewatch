@@ -4,7 +4,7 @@ data/ingest/tmp/*.concat
 data/ingest/timelines/*.json
 data/ingest/timelines/*.json~
 data/ingest/segment_*.ts
-data/ingest/segment_*.ts.hole
+data/ingest/segment_*.ts.discont-after
 data/ingest/tmp/*.m3u8
 data/database.duckdb
 logs/*.log
