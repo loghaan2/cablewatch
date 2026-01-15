@@ -2,7 +2,7 @@ import duckdb
 from cablewatch import config
 
 
-def connect():
+def connect(read_only=False):
     conf = config.Config()
     path = f'{conf.DATABASE_PATH}'
-    return duckdb.connect(path)
+    return duckdb.connect(path, read_only=read_only)
