@@ -224,7 +224,7 @@ class IngestService:
                     break
                 log_level = await self.processLineIssuedByCommand(line)
                 if log_level is not None:
-                    logger.bind(name='[from-cmd]').log(log_level, line)
+                    logger.bind(name='[ffmpeg]').log(log_level, line)
                 if i > 100:
                     self.cleanupTempFolder()
                     i = 0
