@@ -27,6 +27,7 @@ SEGMENT_DATETIME_FORMAT = '%Y-%m-%dT%Hh%Mm%S'
 SEGMENT_FORMAT = 'segment_{datetime}_{duration:.2f}s.ts'
 SEGMENT_PATTERN = r'^segment_(.+)_(.+)s\.ts(\.hole)?$'
 
+HLS_LIST_SIZE = 5
 
 class IngestService:
     COMMAND = f"""
@@ -41,7 +42,7 @@ class IngestService:
           -f hls
           -hls_time {SEGMENT_DURATION}
           -hls_flags program_date_time
-          -hls_list_size 1
+          -hls_list_size {HLS_LIST_SIZE}
           -strftime 1
           -hls_segment_filename tmp/segment_%s.ts
           tmp/output.m3u8
@@ -134,9 +135,7 @@ class IngestService:
         m = re.search(r"^\[hls @ 0x[0-9a-f]+\] Opening '(\S+)' for writing", line)
         if m:
             fn = m.group(1)
-            if fn.endswith('.ts'):
-                self._tmp_segment_filename = fn
-            elif fn.endswith('.m3u8.tmp'):
+            if fn.endswith('.m3u8.tmp'):
                 self.processM3U8Output(fn)
             return 'INFO'
         return self._current_cmd_log_level
@@ -155,20 +154,25 @@ class IngestService:
                     L = len(self.HLS_EXT_INF)
                     duration = float(ln[L:-1])
                     count += 1
-                if ln.startswith(self.HLS_EXT_PROGDT):
+                elif ln.startswith(self.HLS_EXT_PROGDT):
                     L = len(self.HLS_EXT_PROGDT)
                     dt = datetime.strptime(ln[L:], "%Y-%m-%dT%H:%M:%S.%f%z")
                     dt = dt - self.getDriftAverage()
-                    self._segment_filename = SEGMENT_FORMAT.format(datetime=dt.strftime(SEGMENT_DATETIME_FORMAT), duration=duration)
+                    segment_filename = SEGMENT_FORMAT.format(datetime=dt.strftime(SEGMENT_DATETIME_FORMAT), duration_ms=int(duration*1000))
                     count += 1
-                if ln.startswith('segment_'):
-                    logger.info(f'move {self._tmp_segment_filename!r} to {self._segment_filename!r}')
-                    os.rename(self._tmp_segment_filename, self._segment_filename)
-                    self._hole_segment_marker = self._segment_filename + '.hole'
+                elif ln.startswith('segment_'):
+                    tmp_segment_filename = f'tmp/{ln}'
                     count += 1
-            if count < 3:
+                    if not os.path.exists(tmp_segment_filename):
+                        continue
+                    logger.info(f'move {tmp_segment_filename!r} to {segment_filename!r}')
+                    os.rename(tmp_segment_filename, segment_filename)
+                    self._segment_filename = segment_filename
+                    self._hole_segment_marker = segment_filename + '.hole'
+            expected_count_values = set(sorted(range(3, HLS_LIST_SIZE*3+1, 3)))
+            if count not in expected_count_values:
                 if self._recording_requested:
-                    raise AssertionError
+                    logger.error(f'{count} not in {expected_count_values}')
 
     def cleanupTempFolder(self):
         conf = config.Config()
@@ -200,7 +204,6 @@ class IngestService:
         self.triggerJob('ingest-onrecord')
         self._record_start_time = datetime.today()
         self._number_of_launched_records += 1
-        self._tmp_segment_filename = None
         self._segment_filename = None
         self._hole_segment_marker = None
         self._current_cmd_log_level = 'INFO'
