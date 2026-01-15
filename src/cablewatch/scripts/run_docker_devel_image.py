@@ -2,11 +2,10 @@
 
 import sys
 import os
-import pathlib
 
 
 def main():
-    import _bootstrap_package
+    import _bootstrap_package # noqa: F401
     from cablewatch import config
     conf = config.Config()
     cmd = [

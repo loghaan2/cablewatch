@@ -1,7 +1,5 @@
 import pathlib
 import sys
-import copy
-import types
 
 
 class CheckImport:
@@ -14,7 +12,7 @@ class CheckImport:
             return None
 
 try:
-    import cablewatch
+    import cablewatch # noqa: F401
 except ImportError:
     SRC_DIR=str(pathlib.Path(__file__).parent.parent.parent)
     sys.path.append(SRC_DIR)

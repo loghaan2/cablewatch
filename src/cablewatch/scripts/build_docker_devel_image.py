@@ -5,7 +5,7 @@ import os
 
 
 def main():
-    import _bootstrap_package
+    import _bootstrap_package # noqa: F401
     from cablewatch import config
     conf = config.Config()
     cmd = [
