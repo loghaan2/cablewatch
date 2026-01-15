@@ -597,27 +597,15 @@ class IngestTimeSlice:
         last_seg = self._segments[-1]
         return last_seg.begin + last_seg.duration
 
-    @property
-    def duration(self):
-        duration = timedelta(seconds=0)
-        for seg in self._segments:
-            duration += seg.duration
-        return duration
 
     @property
-    def effective_duration(self):
+    def duration(self):
         duration = timedelta(seconds=0)
         for seg in self._segments:
             duration += seg.effective_duration
         return duration
 
-    @property
-    def first_inpoint(self):
-        return self._segments[0].inpoint
 
-    @property
-    def last_outpoint(self):
-        return self._segments[-1].outpoint
 
     def generateConcatContent(self, *, with_inoutpoints=False):
         s = ''
@@ -832,7 +820,7 @@ class IngestTimeLineTool:
     @TLtool_action('sl','slices')
     def slices(self):
         table = Table()
-        headers = ["SLICE_ID/SEGMENT_BASENAME", "INPOINT", "OUTPOINT", "EFFECTIVE_DURATION"]
+        headers = ["SLICE_ID/SEGMENT_BASENAME", "INPOINT", "OUTPOINT", "DURATION"]
         for hdr in headers:
             table.add_column(hdr)
         seprator = [''] * len(headers)
@@ -841,7 +829,7 @@ class IngestTimeLineTool:
         tl = IngestTimeLine(name=name)
         for i,slice in enumerate(tl.slices()):
             table.add_row(*seprator)
-            table.add_row(f'[cyan]slice #{i}[/cyan]','','',f'[cyan]{slice.effective_duration}[/cyan]')
+            table.add_row(f'[cyan]slice #{i}[/cyan]','','',f'[cyan]{slice.duration}[/cyan]')
             for seg in slice.segments:
                 table.add_row(seg.basename,f'{seg.inpoint}',f'{seg.outpoint}',f'{seg.effective_duration}')
         print()
