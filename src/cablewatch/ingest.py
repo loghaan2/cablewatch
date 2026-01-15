@@ -71,7 +71,16 @@ class IngestService:
         self._number_of_failed_records = 0
         self._drifts = []
         self._aborter = aborter
+        self._scheduler = None
         http_service.addDecoratedRoutes(self)
+
+    def registerScheduler(self, scheduler):
+        self._scheduler = scheduler
+
+    def triggerJob(self, job_id):
+        if self._scheduler is None:
+            return
+        self._scheduler.triggerJob(job_id)
 
     async def start(self):
         logger.info("starting ingest service")
@@ -91,6 +100,7 @@ class IngestService:
     async def halt(self):
         self._halt_start_time = datetime.today()
         await self.pushStatus()
+        self.triggerJob('ingest-onhalt')
         while True:
             for i in range(100):
                 if self._recording_requested:
@@ -187,6 +197,7 @@ class IngestService:
     async def runCommand(self):
         logger.info("run recording")
         logger.info(f"command is {self._command!r}")
+        self.triggerJob('ingest-onrecord')
         self._record_start_time = datetime.today()
         self._number_of_launched_records += 1
         self._tmp_segment_filename = None
