@@ -827,11 +827,13 @@ class IngestTimeLineTool:
         name = self.getName(0)
         self.ensureName(name, 'existing')
         tl = IngestTimeLine(name=name)
+        def _(pt):
+            return '' if pt is None else pt
         for i,slice in enumerate(tl.slices()):
             table.add_row(*seprator)
             table.add_row(f'[cyan]slice #{i}[/cyan]','','',f'[cyan]{slice.duration}[/cyan]')
             for seg in slice.segments:
-                table.add_row(seg.basename,f'{seg.inpoint}',f'{seg.outpoint}',f'{seg.effective_duration}')
+                table.add_row(seg.basename,f'{_(seg.inpoint)}',f'{_(seg.outpoint)}',f'{seg.effective_duration}')
         print()
         rich_print(table)
 
