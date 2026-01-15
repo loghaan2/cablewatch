@@ -6,6 +6,7 @@ data/ingest/timelines/*.json~
 data/ingest/segment_*.ts
 data/ingest/segment_*.ts.discont-after
 data/ingest/tmp/*.m3u8
+data/speech/*.json
 data/database.duckdb
 logs/*.log
 src/cablewatch/__pycache__/
