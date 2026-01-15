@@ -15,7 +15,7 @@ class InterceptHandler(logging.Handler):
         )
 
 
-def setup():
+def setup(fileoutput=False):
     conf = config.Config()
 
     logging.root.handlers = []
@@ -45,11 +45,13 @@ def setup():
         format=format,
     )
 
-    logger.add(
-        f"{conf.LOGS_DIR}/ingest_{{time:YYYY-MM-DD}}_{{time:HH}}h{{time:mm}}.log",
-        rotation="06:00",
-        retention="100 days",
-        level="INFO",
-        colorize=False,
-        format=format,
-    )
+    if fileoutput:
+         logger.add(
+            f"{conf.LOGS_DIR}/ingest_{{time:YYYY-MM-DD}}_{{time:HH}}h{{time:mm}}.log",
+            rotation="06:00",
+            retention="100 days",
+            level="INFO",
+            colorize=False,
+            format=format,
+            enqueue=True,
+        )

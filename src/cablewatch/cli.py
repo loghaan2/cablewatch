@@ -43,7 +43,7 @@ class Aborter:
 
 @make_synchrone
 async def main_services():
-    loghlp.setup()
+    loghlp.setup(fileoutput=True)
     aborter = Aborter()
     http_service = http.HTTPService()
     ingest_service = ingest.IngestService(http_service=http_service, aborter=aborter)
@@ -55,6 +55,7 @@ async def main_services():
     await scheduler_service.stop()
     await ingest_service.stop()
     await http_service.stop()
+    logger.complete()
 
 
 def main_download_roadmap():
