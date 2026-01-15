@@ -363,8 +363,8 @@ class IngestTimeLine:
         if not re.fullmatch(cls.NAME_PATTERN, name):
             raise AssertionError(f'{name} is not a valid timeline name')
 
-    @classmethod
-    def loadNames(self):
+    @staticmethod
+    def loadAllNames():
         EXT = '.json'
         names = []
         conf = config.Config()
@@ -374,25 +374,33 @@ class IngestTimeLine:
         return names
 
     @classmethod
-    def loadInstances(cls):
+    def loadAllInstances(cls):
         instances = {}
-        instances['glob'] = IngestTimeLine(name='glob')
-        for name in cls.loadNames():
-            tl = IngestTimeLine(name=name)
+        instances['glob'] = IngestTimeLine('glob')
+        for name in cls.loadAllNames():
+            tl = cls.load(name)
             instances[name] = tl
         return instances
+
+    @staticmethod
+    def getJSONFilename(name):
+        conf = config.Config()
+        return f'{conf.INGEST_DATADIR}/timelines/{name}.json'
+
+    @classmethod
+    def load(cls, name):
+        cls.checkName(name)
+        with open(cls.getJSONFilename(name), 'r') as f:
+            d = json.loads(f.read())
+        begin = datetime.fromisoformat(d['begin'])
+        duration = timedelta(seconds=d['duration'])
+        return cls(name, begin=begin, duration=duration)
 
     def __init__(self, *args, **kwargs):
         self.init(*args,**kwargs)
 
-    def getJSONFilename(self):
-        conf = config.Config()
-        name = self._name
-        return f'{conf.INGEST_DATADIR}/timelines/{name}.json'
-
-    def init(self, name, readonly=False, begin=None, duration=None, load=True):
+    def init(self, name, *, begin=None, duration=None):
         self.checkName(name)
-        self._name = name
         conf = config.Config()
         all_segment_filenames = glob.glob(f"{conf.INGEST_DATADIR}/segment_*.ts*")
         all_segment_filenames.sort()
@@ -413,11 +421,6 @@ class IngestTimeLine:
                 duration = last_seg.begin - first_seg.begin + last_seg.duration
             else:
                 duration = timedelta(seconds=0)
-        if load and os.path.exists(self.getJSONFilename()):
-            with open(self.getJSONFilename(), 'r') as f:
-                d = json.loads(f.read())
-            begin = datetime.fromisoformat(d['begin'])
-            duration = timedelta(seconds=d['duration'])
         for seg in list(segments.values()):
             if (seg.begin + seg.duration) < begin:
                 del segments[seg.begin]
@@ -432,6 +435,7 @@ class IngestTimeLine:
                 first_seg.inpoint = begin - first_seg.begin
             if seg_end > end:
                 last_seg.outpoint = last_seg.duration - (seg_end - end)
+        self._name = name
         self._begin = begin
         self._duration = duration
         self._segments = segments
@@ -472,17 +476,17 @@ class IngestTimeLine:
     def advance(self):
         duration = self._duration
         begin = self._begin + duration
-        self.init(self._name, begin=begin, duration=duration, load=False)
+        self.init(self._name, begin=begin, duration=duration)
 
     def reset(self):
         duration = self._duration
         begin = None
-        self.init(self._name, begin=begin, duration=duration, load=False)
+        self.init(self._name, begin=begin, duration=duration)
 
     def rename(self, name):
         duration = self._duration
         begin = self._begin
-        self.init(name, begin=begin, duration=duration, load=False)
+        self.init(name, begin=begin, duration=duration)
 
     def save(self):
         name = self._name
@@ -492,14 +496,14 @@ class IngestTimeLine:
             begin = self._begin.isoformat(),
             duration = self._duration.total_seconds(),
         )
-        with open(self.getJSONFilename(), 'w') as f:
+        with open(self.getJSONFilename(name), 'w') as f:
             f.write(json.dumps(d) + '\n')
 
     def remove(self):
         name = self._name
         if name in self.PROTECTED_NAMES:
             raise AssertionError(f'timeline {name!r} cannot be removed')
-        os.remove(self.getJSONFilename())
+        os.remove(self.getJSONFilename(name))
 
     def slices(self):
         segments = []
@@ -514,6 +518,7 @@ class IngestTimeLine:
         if len(slices_):
             slices_[-1].setLast()
         return slices_
+
 
 class IngestSegment:
     @staticmethod
@@ -703,7 +708,7 @@ class IngestTimeLineTool:
         def __init__(self):
             actions = '|'.join(TLTOOL_ACTIONS)
             super().__init__(usage=f'%(prog)s <{actions}> [timeline-names] <options>')
-            self.add_argument('-d','--duration', dest='duration', default="0s", help="set timeline duration")
+            self.add_argument('-d','--duration', dest='duration', default="600s", help="set timeline duration")
             self.add_argument('-s','--slice-index', dest='slice_index', default=None, type=int, help="set slice index")
             self.add_argument('--audio', dest='only', default=None, action='store_const', const='audio', help="only audio")
             self.add_argument('--video', dest='only', default=None, action='store_const', const='audio', help="only video")
@@ -745,7 +750,7 @@ class IngestTimeLineTool:
         ns = self._ns
         for name in ns.largs:
             self.ensureName(name, 'existing')
-            tl = IngestTimeLine(name=name)
+            tl = IngestTimeLine.load(name)
             tl.remove()
 
     def getName(self, idx):
@@ -760,7 +765,7 @@ class IngestTimeLineTool:
         self._argparser.error(msg)
 
     def ensureName(self, name, mode):
-        exists = (name in IngestTimeLine.loadNames()) or (name in IngestTimeLine.PROTECTED_NAMES)
+        exists = (name in IngestTimeLine.loadAllNames()) or (name in IngestTimeLine.PROTECTED_NAMES)
         if mode not in ('existing', 'not-existing'):
             raise AssertionError
         if exists and mode=='not-existing':
@@ -782,7 +787,7 @@ class IngestTimeLineTool:
     def advance(self):
         name = self.getName(0)
         self.ensureName(name, 'existing')
-        tl = IngestTimeLine(name=name)
+        tl = IngestTimeLine.load(name)
         tl.advance()
         tl.save()
 
@@ -790,7 +795,7 @@ class IngestTimeLineTool:
     def reset(self):
         name = self.getName(0)
         self.ensureName(name, 'existing')
-        tl = IngestTimeLine(name=name)
+        tl = IngestTimeLine.load(name)
         tl.reset()
         tl.save()
 
@@ -800,16 +805,16 @@ class IngestTimeLineTool:
         dst_name = self.getName(1)
         self.ensureName(src_name, 'existing')
         self.ensureName(dst_name, 'not-existing')
-        tl = IngestTimeLine(name=src_name)
+        tl = IngestTimeLine.load(src_name)
         tl.rename(dst_name)
         tl.save()
 
     @TLtool_action('ed','edit')
     def edit(self):
         name = self.getName(0)
-        tl = IngestTimeLine(name=name)
+        tl = IngestTimeLine.load(name)
         tl.save()
-        cmd = f"{os.getenv('EDITOR')} {tl.getJSONFilename()}"
+        cmd = f"{os.getenv('EDITOR')} {tl.getJSONFilename(name)}"
         cmd = shlex.split(cmd)
         os.execvp(cmd[0],cmd)
         raise AssertionError('execvp() failed')
@@ -822,7 +827,7 @@ class IngestTimeLineTool:
         table.add_column("END")
         table.add_column("DURATION")
         table.add_column("NUM_DISCONTINUITIES")
-        for name, tl in IngestTimeLine.loadInstances().items():
+        for name, tl in IngestTimeLine.loadAllInstances().items():
             if tl.duration.total_seconds() == 0:
                 duration = "0s"
             else:
@@ -839,7 +844,7 @@ class IngestTimeLineTool:
         seprator = [''] * len(headers)
         name = self.getName(0)
         self.ensureName(name, 'existing')
-        tl = IngestTimeLine(name=name)
+        tl = IngestTimeLine.load(name)
         def _(pt):
             return '' if pt is None else pt
         for i,slice in enumerate(tl.slices()):
@@ -855,7 +860,7 @@ class IngestTimeLineTool:
         ns = self._ns
         name = self.getName(0)
         self.ensureName(name, 'existing')
-        tl = IngestTimeLine(name=name)
+        tl = IngestTimeLine.load(name)
         slice = list(tl.slices())[ns.slice_index]
         cmd = slice.generateConcatCommand(only=ns.only, shell=True)
         print(cmd)
