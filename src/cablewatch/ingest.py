@@ -576,6 +576,10 @@ class IngestTimeSlice:
         return self._last
 
     @property
+    def timeline(self):
+        return self._timeline
+
+    @property
     def segments(self):
         return copy.copy(self._segments)
 
