@@ -25,6 +25,13 @@ class SchedulerService:
             sched.shutdown()
         logger.info("scheduler service stopped")
 
+    def triggerJob(self, job_id):
+        job = self._sched.get_job(job_id)
+        if job is None:
+            logger.error(f"no job with id {job_id!r}")
+            return
+        job.modify(next_run_time=datetime.now())
+
     def record(self):
         logger.warning("record requested by scheduler")
         self._ingest_service.requestRecording()
