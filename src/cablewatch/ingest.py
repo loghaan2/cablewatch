@@ -675,7 +675,7 @@ class IngestTimeSlice:
             elif seg.inpoint and seg.outpoint:
                 duration = seg.outpoint.total_seconds() - seg.inpoint.total_seconds()
                 if duration < 0:
-                    raise AssertionErrir
+                    raise AssertionError
                 cmd += ['-ss', f'{seg.inpoint.total_seconds()}', '-t', f'{duration}', '-i', seg.filename]
         filter += f'concat=n={len(self._segments)}:v={int(video)}:a={int(audio)}'
         if video:
