@@ -1,5 +1,8 @@
 import asyncio
 import signal
+import argparse
+import sys
+import os
 from loguru import logger
 from cablewatch import http, loghlp, ingest, scheduler
 
@@ -8,6 +11,18 @@ def make_synchrone(async_func):
     def inner():
         return asyncio.run(async_func())
     return inner
+
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def __init__(self):
+        super().__init__()
+        self.add_argument('-n', '--no-record-planification', dest='record_planification', default=True, action='store_false', help="no record planification")
+
+    def parse_args(self, args):
+        ns = super().parse_args(args[1:])
+        ns.prog = os.path.basename(args[0])
+        return ns
 
 
 class Aborter:
@@ -41,10 +56,14 @@ class Aborter:
 @make_synchrone
 async def main():
     loghlp.setup(fileoutput=True)
+    p = ArgumentParser()
+    logger.info(f'args: {sys.argv[1:]}')
+    ns = p.parse_args(sys.argv)
+    logger.info(f'ns: {ns}')
     aborter = Aborter()
     http_service = http.HTTPService()
     ingest_service = ingest.IngestService(http_service=http_service, aborter=aborter)
-    scheduler_service = scheduler.SchedulerService(ingest_service=ingest_service)
+    scheduler_service = scheduler.SchedulerService(ingest_service=ingest_service, record_planification=ns.record_planification)
     await http_service.start()
     await scheduler_service.start()
     await ingest_service.start()

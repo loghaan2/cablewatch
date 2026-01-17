@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 from loguru import logger
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -7,12 +7,15 @@ from cablewatch.decorators import log_exception
 
 
 class SchedulerService:
-    SPEECH_LAUNCH_OR_FETCH_SECONDS = speech.SpeechExtractor.TIMELINE_DURATION * 8
+    SPEECH_LAUNCH_OR_FETCH_SECONDS = speech.SpeechExtractor.TIMELINE_DURATION * 4
+    DO_RECORD_TIME = time(hour=6, minute=25)
+    DO_HALT_TIME = time(hour=0, minute=5)
 
-    def __init__(self, ingest_service):
+    def __init__(self, *, ingest_service, record_planification=True):
         self._ingest_service = ingest_service
         self._sched = None
         self._launch_or_fetch = 'launch'
+        self._record_planification = record_planification
         ingest_service.registerScheduler(self)
 
     async def start(self):
@@ -25,14 +28,18 @@ class SchedulerService:
         }
         sched = BackgroundScheduler(timezone=conf.TIMEZONE, executors=executors)
         self._sched = sched
-        # jobs
-        sched.add_job(self.ingest_dorecord, trigger="cron", hour=6, minute=25)
-        sched.add_job(self.ingest_dohalt, trigger="cron", hour=0, minute=5)
+        logger.warning('ingest record/halt daily planification jobs:')
+        if self._record_planification:
+            sched.add_job(self.ingest_dorecord, trigger="cron", hour=self.DO_RECORD_TIME.hour, minute=self.DO_RECORD_TIME.minute)
+            logger.warning(f'  - record at {self.DO_RECORD_TIME}')
+            sched.add_job(self.ingest_dohalt, trigger="cron", hour=self.DO_HALT_TIME.hour, minute=self.DO_HALT_TIME.minute)
+            logger.warning(f'  - halt at {self.DO_HALT_TIME}')
+        else:
+            logger.warning('  (none)')
         sched.add_job(self.ingest_onrecord, trigger="interval", days=1000, id="ingest-onrecord") # triggered from ingest service
         sched.add_job(self.ingest_onhalt, trigger="interval", days=1000, id="ingest-onhalt") # triggered from ingest service
         sched.add_job(self.speech_upload, trigger="interval", seconds=speech.SpeechExtractor.TIMELINE_DURATION, executor='speech-upload')
         sched.add_job(self.speech_launch_or_fetch, trigger="interval", seconds=self.SPEECH_LAUNCH_OR_FETCH_SECONDS, executor='speech-launch-or-fetch')
-        # start apscheduler
         sched.start()
         logger.info("scheduler service started")
 
