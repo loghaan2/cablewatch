@@ -298,6 +298,7 @@ class IngestService:
 
     @http_get("/api/ingest")
     async def handleWebSocket(self, request: web.Request) -> web.WebSocketResponse():
+        user = request['user']
         ws = web.WebSocketResponse()
         self._status_websockets.add(ws)
         await ws.prepare(request)
@@ -309,14 +310,18 @@ class IngestService:
                     break
                 elif msg.type == web.WSMsgType.TEXT:
                     if msg.data == 'record':
-                        if not self._recording_requested:
+                        if 'admin' not in user.roles:
+                            returned_msg = "not authorized"
+                        elif not self._recording_requested:
                             self.requestRecording()
                             await self.pushStatus()
                             returned_msg = "ok"
                         else:
                             returned_msg = "state error: curently recording"
                     elif msg.data == 'halt':
-                        if self._recording_requested:
+                        if 'admin' not in user.roles:
+                            returned_msg = "not authorized"
+                        elif self._recording_requested:
                             self.requestHalt()
                             await self.pushStatus()
                             returned_msg = "ok"
@@ -325,6 +330,7 @@ class IngestService:
                     else:
                         returned_msg = f"invalid command: '{msg.data}'"
                     await ws.send_json({'type': 'command-reply', 'message': returned_msg})
+                user.reload()
         finally:
             self._status_websockets.remove(ws)
         return ws

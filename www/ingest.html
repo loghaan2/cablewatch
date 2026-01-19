@@ -33,6 +33,11 @@
         .status div {
             margin: 5px 0;
         }
+        .message {
+            margin: 5px 0;
+            color: red;
+            text-align: center;
+        }
         .controls {
             text-align: center;
             margin-bottom: 20px;
@@ -66,6 +71,10 @@
         </div>
         <br/>
         <hr>
+        <div class="message">
+        <br/>
+        </div>
+        <hr>
         <div class="status">
         </div>
     </div>
@@ -78,6 +87,20 @@
         const haltBtn = document.getElementById('halt-btn');
         recordBtn.disabled = true;
         haltBtn.disabled = true;
+        let messageTimerId = null;
+
+        function setMessage(message, timeout) {
+            const timerId = setTimeout(() => {
+                const parent = document.querySelector("div.message");
+                parent.innerHTML = `<strong>${message}</strong>`;
+            }, timeout);
+            if (timeout > 0) {
+                if (messageTimerId !== null) {
+                    clearTimeout(messageTimerId);
+                }
+                messageTimerId = timerId;
+            }
+        }
 
         function updateStatus(reset,data) {
             const parent = document.querySelector("div.status");
@@ -113,6 +136,10 @@
                 data['connected'] = true;
                 if (data.type === 'status') {
                     updateStatus(false, data);
+                }
+                else if (data.type === 'command-reply' && data.message != 'ok') {
+                    setMessage(data.message, 0);
+                    setMessage('<br/>', 2000);
                 }
             };
             ws.onclose = () => {

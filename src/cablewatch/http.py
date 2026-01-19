@@ -1,7 +1,8 @@
 import logging
+import base64
 from aiohttp import web
 from loguru import logger
-from cablewatch import config
+from cablewatch import config, user
 
 
 class RouterDecorator:
@@ -17,9 +18,28 @@ class RouterDecorator:
         return inner
 
 
+@web.middleware
+async def perform_basic_authentification(request, handler):
+    auth = request.headers.get("Authorization")
+    if not auth or not auth.startswith("Basic "):
+        raise web.HTTPUnauthorized(
+            headers={"WWW-Authenticate": 'Basic realm="Restricted"'}
+        )
+    encoded = auth.split(" ", 1)[1]
+    decoded = base64.b64decode(encoded).decode()
+    username, password = decoded.split(":", 1)
+    u = user.User(username)
+    if not u.verifyPassword(password):
+        raise web.HTTPUnauthorized(
+            headers={"WWW-Authenticate": 'Basic realm="Restricted"'}
+        )
+    request["user"] = u
+    return await handler(request)
+
+
 class HTTPService:
     def __init__(self):
-        self._app = web.Application()
+        self._app = web.Application(middlewares=[perform_basic_authentification])
         conf = config.Config()
         self._app.router.add_static(
             prefix="/",
