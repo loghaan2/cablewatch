@@ -19,7 +19,7 @@ def main():
         raise AssertionError("Cannot find publish page")
     with open("ROADMAP.md", 'w') as f:
         f.write(div.get_text(strip=True))
-
+        f.write('\n')
 
 if __name__ == '__main__':
     main()
