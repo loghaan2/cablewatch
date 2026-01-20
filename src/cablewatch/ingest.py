@@ -853,3 +853,17 @@ class IngestTimeLineTool:
         ns = self._ns
         rich_print(ns)
 
+    @TLtool_action('pipe')
+    def pipe(self):
+        ns = self._ns
+        tl = IngestTimeLine(name='.play', begin=ns.begin, duration=ns.duration)
+        slice = list(tl.slices())[ns.slice_index]
+        concat = slice.generateConcatCommand(only=ns.only, shell=False)
+        cmd = ['ffmpeg'] + concat
+        if ns.only == 'audio':
+            cmd += ['-f', 'wav']
+        else:
+            cmd += ['-f', 'matroska']
+        cmd += ['pipe:1']
+        print(cmd)
+        os.execvp(cmd[0], cmd)
