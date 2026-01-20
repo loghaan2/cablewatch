@@ -17,11 +17,11 @@ class InterceptHandler(logging.Handler):
         )
 
 
-def setup(fileoutput=False):
+def setup(level='INFO', fileoutput=False):
     conf = config.Config()
 
     logging.root.handlers = []
-    logging.root.setLevel(logging.INFO)
+    logging.root.setLevel(getattr(logging, level))
 
     intercept_handler = InterceptHandler()
 
@@ -42,7 +42,7 @@ def setup(fileoutput=False):
 
     _logger.add(
         lambda msg: print(msg, end=""),
-        level="INFO",
+        level=level,
         colorize=True,
         format=format,
     )
@@ -52,7 +52,7 @@ def setup(fileoutput=False):
             f"{conf.LOGS_DIR}/{{time:YYYYMMDD}}_{{time:HH}}h{{time:mm}}.log",
             rotation="06:00",
             retention="100 days",
-            level="INFO",
+            level=level,
             colorize=False,
             format=format,
             enqueue=True,

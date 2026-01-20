@@ -31,7 +31,6 @@ from cablewatch import config, ingest, loghlp, arghlp
 
 
 def main():
-    loghlp.setup()
     extractor = SpeechExtractor(sys.argv)
     extractor()
 

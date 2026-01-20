@@ -2,7 +2,7 @@ import asyncio
 import signal
 import sys
 from loguru import logger
-from cablewatch import http, loghlp, ingest, scheduler, arghlp
+from cablewatch import http, ingest, scheduler, arghlp
 
 
 def make_synchrone(async_func):
@@ -42,7 +42,6 @@ class Aborter:
 
 @make_synchrone
 async def main():
-    loghlp.setup(fileoutput=True)
     p = arghlp.ArgumentParser(super_service=True)
     logger.info(f'args: {sys.argv[1:]}')
     ns = p.parse_args(sys.argv)
