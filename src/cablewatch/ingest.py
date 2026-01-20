@@ -7,18 +7,16 @@ import textwrap
 import time
 import glob
 import json
-import argparse
 import tempfile
 import copy
 import shlex
 from datetime import datetime, timedelta
-from pytimeparse.timeparse import timeparse
 from loguru import logger
 from aiohttp import web,  WSCloseCode
 import psutil
 from rich import print as rich_print
 from rich.table import Table
-from cablewatch import config
+from cablewatch import config, arghlp
 from cablewatch.decorators import http_get
 
 
@@ -715,39 +713,8 @@ def timeline_tool_main():
 
 
 class IngestTimeLineTool:
-    class ArgumentParser(argparse.ArgumentParser):
-        def __init__(self):
-            actions = '|'.join(TLTOOL_ACTIONS)
-            super().__init__(usage=f'%(prog)s <{actions}> [timeline-names] <options>')
-            self.add_argument('-d','--duration', dest='duration', default="600s", help="set timeline duration")
-            self.add_argument('-s','--slice-index', dest='slice_index', default=None, type=int, help="set slice index")
-            self.add_argument('--audio', dest='only', default=None, action='store_const', const='audio', help="only audio")
-            self.add_argument('--video', dest='only', default=None, action='store_const', const='audio', help="only video")
-
-        def parse_args(self, args):
-            prog = args[0]
-            ns,args = super().parse_known_args(args[1:])
-            ns.prog = prog
-            ns.action = None
-            ns.largs = []
-            ns.rargs = []
-            xargs = ns.largs
-            for a in args:
-                if ns.action is None:
-                    if a not in TLTOOL_ACTIONS:
-                        self.error(f'invalid action {a!r}')
-                    else:
-                        ns.action = a
-                elif a == '--':
-                    xargs = ns.rargs
-                else:
-                    xargs.append(a)
-            if ns.action is None:
-                self.error('no action secified')
-            return ns
-
     def __init__(self, args):
-        p = self.ArgumentParser()
+        p = arghlp.ArgumentParser(timeline_tool=self, actions=TLTOOL_ACTIONS.keys())
         self._ns = p.parse_args(args)
         self._argparser = p
 
@@ -789,9 +756,7 @@ class IngestTimeLineTool:
         ns = self._ns
         name = self.getName(0)
         self.ensureName(name, 'not-existing')
-        duration = timedelta(seconds=timeparse(ns.duration))
-        begin = None
-        tl = IngestTimeLine(name=name, begin=begin, duration=duration)
+        tl = IngestTimeLine(name=name, begin=ns.begin, duration=ns.duration)
         tl.save()
 
     @TLtool_action('adv', 'advance')
@@ -875,3 +840,9 @@ class IngestTimeLineTool:
         slice = list(tl.slices())[ns.slice_index]
         cmd = slice.generateConcatCommand(only=ns.only, shell=True)
         print(cmd)
+
+    @TLtool_action('ns')
+    def ns(self):
+        ns = self._ns
+        rich_print(ns)
+

@@ -5,7 +5,7 @@ import sys
 import os
 import io
 import math
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 import wave
 import pathlib
 import argparse
@@ -27,7 +27,7 @@ from google.cloud.speech_v2.types import (
 from rich.table import Table
 from rich import print as rich_print
 from rich.console import Console
-from cablewatch import config, ingest, loghlp
+from cablewatch import config, ingest, loghlp, arghlp
 
 
 def main():
@@ -81,46 +81,12 @@ class SpeechExtractor:
     KEEP_BUCKET = False
     LOCAL_COPY = False
 
-    class ArgumentParser(argparse.ArgumentParser):
-        def __init__(self, parent):
-            actions = '|'.join(SETOOL_ACTIONS)
-            super().__init__(usage=f'%(prog)s <{actions}> [timeline-names] <options>')
-            self.add_argument('-k', '--keep-bucket', dest='keep_bucket', default=parent.KEEP_BUCKET, action='store_true',  help="keep files in buckets")
-            self.add_argument('-l', '--local-copy', dest='local_copy', default=parent.LOCAL_COPY, action='store_true',  help="make a local copy .wav and .json files")
-            self.add_argument('-d', '--day', dest='day', default=None, help="day")
-
-        def parse_args(self, args):
-            prog = args[0]
-            ns,args = super().parse_known_args(args[1:])
-            ns.prog = prog
-            ns.action = None
-            ns.largs = []
-            ns.rargs = []
-            xargs = ns.largs
-            for a in args:
-                if ns.action is None:
-                    if a not in SETOOL_ACTIONS:
-                        self.error(f'invalid action {a!r}')
-                    else:
-                        ns.action = a
-                elif a == '--':
-                    xargs = ns.rargs
-                else:
-                    xargs.append(a)
-            if ns.action is None:
-                self.error('no action secified')
-            if ns.day is not None:
-                ns.day = datetime.strptime(ns.day, "%Y%m%d").date()
-            else:
-                ns.day = datetime.now().date()
-            return ns
-
     def __init__(self, args=None, action=None, local_copy=LOCAL_COPY, keep_bucket=KEEP_BUCKET):
         if args is None:
             self._ns = argparse.Namespace(action=action, local_copy=local_copy, keep_bucket=keep_bucket)
             self._argparser = None
         else:
-            p = self.ArgumentParser(self)
+            p = arghlp.ArgumentParser(speech_extractor=self, actions=SETOOL_ACTIONS.keys())
             self._ns = p.parse_args(args)
             self._argparser = p
         conf = config.Config()
@@ -384,7 +350,7 @@ class SpeechExtractor:
             table.add_column("word")
             return table
         ns = self._ns
-        v = SpeechView(begin=datetime.combine(ns.day, time.min), end=datetime.combine(ns.day, time.max))
+        v = SpeechView(begin=ns.begin, end=ns.end)
         iterator = getattr(v, ns.action)
         for d in iterator():
             if isinstance(d,dict):
