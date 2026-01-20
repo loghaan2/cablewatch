@@ -360,8 +360,14 @@ class IngestService:
 
 
 class IngestTimeLine:
-    NAME_PATTERN = r"^[A-Za-z0-9_-]+$"
-    PROTECTED_NAMES = set(['glob'])
+    NAME_PATTERN = r"^[A-Za-z0-9_.-]+$"
+
+    @staticmethod
+    def isProtectedName(name):
+        if name.startswith('.'):
+            return True
+        else:
+            return False
 
     @classmethod
     def checkName(cls, name):
@@ -381,7 +387,7 @@ class IngestTimeLine:
     @classmethod
     def loadAllInstances(cls):
         instances = {}
-        instances['glob'] = IngestTimeLine('glob')
+        instances['.glob'] = IngestTimeLine('.glob')
         for name in cls.loadAllNames():
             tl = cls.load(name)
             instances[name] = tl
@@ -495,7 +501,7 @@ class IngestTimeLine:
 
     def save(self):
         name = self._name
-        if name in self.PROTECTED_NAMES:
+        if self.isProtectedName(name):
             raise AssertionError(f'timeline {name!r} cannot be altered')
         d = dict(
             begin = self._begin.isoformat(),
@@ -506,7 +512,7 @@ class IngestTimeLine:
 
     def remove(self):
         name = self._name
-        if name in self.PROTECTED_NAMES:
+        if self.isProtectedName(name):
             raise AssertionError(f'timeline {name!r} cannot be removed')
         os.remove(self.getJSONFilename(name))
 
@@ -744,7 +750,7 @@ class IngestTimeLineTool:
         self._argparser.error(msg)
 
     def ensureName(self, name, mode):
-        exists = (name in IngestTimeLine.loadAllNames()) or (name in IngestTimeLine.PROTECTED_NAMES)
+        exists = (name in IngestTimeLine.loadAllNames()) or self.isProtectedName(name)
         if mode not in ('existing', 'not-existing'):
             raise AssertionError
         if exists and mode=='not-existing':
