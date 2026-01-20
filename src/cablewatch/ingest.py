@@ -70,6 +70,7 @@ class IngestService:
         self._drifts = []
         self._aborter = aborter
         self._scheduler = None
+        self._segment_filename = None
         http_service.addDecoratedRoutes(self)
 
     def registerScheduler(self, scheduler):

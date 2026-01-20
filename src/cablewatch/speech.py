@@ -131,7 +131,11 @@ class SpeechExtractor:
 
     @SEtool_action('upload', 'convert-and-upload')
     def convertAndUpload(self):
-        tl = ingest.IngestTimeLine.load(self.TIMELINE_NAME)
+        try:
+            tl = ingest.IngestTimeLine.load(self.TIMELINE_NAME)
+        except FileNotFoundError:
+            logger.warning(f'cannot open timeline {self.TIMELINE_NAME!r}')
+            return
         logger.info(f'timeline before: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')
         slices = tl.slices()
         if len(slices) == 0:
