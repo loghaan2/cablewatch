@@ -174,9 +174,7 @@ exists. ``wscat`` can be installed with the following commands:
 
 .. code-block:: shell-session
 
-    (cablewatch) $ cablewatch-wscat -c ws://127.0.0.1:8000/api/ingest --basic-auth
-    Username: loghaan
-    Password: <you_will_never_guess_this_ha_ha_ha>
+    (cablewatch) $ wscat -c ws://127.0.0.1:8000/api/ingest --auth loghaan:you_will_never_guess_this_ha_ha_ha>
     Connected (press CTRL+C to quit)
     < {"type": "status", "recording_requested": true, "pid": 28621, "service_start_time": ...
 
