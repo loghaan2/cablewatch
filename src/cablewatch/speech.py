@@ -343,25 +343,58 @@ class SpeechExtractor:
         ns = self._ns
         rich_print(ns)
 
-    @SEtool_action('raw', 'bronze', 'silver')
+    @SEtool_action('bronze', 'silver', 'gold')
     def view(self):
         console = Console(force_terminal=True)
-        def create_table():
-            table = Table()
-            table.add_column("timestamp")
-            table.add_column("speaker")
-            table.add_column("word")
-            return table
         ns = self._ns
         v = SpeechView(begin=ns.begin, end=ns.end)
         iterator = getattr(v, ns.action)
+        if ns.output_format=='text':
+            printer = SpeechTextPrinter(console)
+        else:
+            printer = console
         for d in iterator():
-            if isinstance(d,dict):
-                if 'timestamp' in d:
-                    d['timestamp'] = d['timestamp'].strftime(DATETIME_FORMAT)
-                if 'pos' in d:
-                    d['pos'] = f"{d['pos']:04d}"
-            console.print(d)
+            if 'timestamp' in d:
+                if d['timestamp'] < ns.begin:
+                    continue
+                if d['timestamp'] > ns.end:
+                    continue
+                d['timestamp'] = d['timestamp'].strftime(DATETIME_FORMAT)
+            if 'pos' in d:
+                d['pos'] = f"{d['pos']:04d}"
+            printer.print(d)
+
+
+class SpeechTextPrinter:
+    SPEAKER_COLORS = [
+        "purple", "green", "yellow", "red", "blue", "cyan"
+    ]
+    STAMP_COLOR = 'white'
+    def __init__(self, console):
+        self._console = console
+        self._speaker_colors = {}
+        self._next_speaker_color_index = 0
+        self._count = 0
+        self._last_speaker = None
+
+    def print(self, d):
+        console = self._console
+        speaker = d['speaker']
+        kwargs = dict(end="", highlight=False)
+        if self._count > 30:
+            console.print(f'[{self.STAMP_COLOR}]<{d["timestamp"][9:]}>[/] ', **kwargs)
+            self._count = 0
+        try:
+            speaker_color = self._speaker_colors[speaker]
+        except KeyError:
+            speaker_color = self.SPEAKER_COLORS[self._next_speaker_color_index]
+            self._speaker_colors[speaker] = speaker_color
+            self._next_speaker_color_index = (self._next_speaker_color_index + 1) % len(self.SPEAKER_COLORS)
+        if speaker != self._last_speaker:
+            console.print(f'[{self.STAMP_COLOR}]<speaker:{speaker}>[/] ', **kwargs)
+        console.print(f'[{speaker_color}]{d["word"]}[/{speaker_color}] ', **kwargs)
+        self._count += 1
+        self._last_speaker = speaker
 
 
 def find_longest_common_sublist_fuzzy(a, b, threshold=0.8):
@@ -388,10 +421,11 @@ class SpeechView:
     WINDOW_SIZE = 100
     MIN_OVERLAP_SIZE = int(WINDOW_SIZE * 0.1)
 
-    def __init__(self, *, begin, end):
+    def __init__(self, *, begin, end, logger=None):
         conf = config.Config()
         self._begin = begin
         self._end = end
+        self._logger = logger
         all_results_filenames = glob.glob(f"{conf.SPEECH_DATADIR}/*.json")
         all_results_filenames.sort()
         results = {}
@@ -399,14 +433,14 @@ class SpeechView:
             res = SpeechResult.fromFileName(fn)
             results[res.begin] = res
         for res in list(results.values()):
-            if (res.begin + res.duration) < begin:
+            if res.end < begin:
                 del results[res.begin]
-            elif res.begin >= end:
+            if res.begin > end:
                 del results[res.begin]
         self._results = results
         self._basenames = {}
 
-    def raw(self):
+    def _raw(self):
         for res in self._results.values():
             for x in res.data['results'][0]['alternatives'][0]['words']:
                 yield res,x
@@ -418,7 +452,7 @@ class SpeechView:
         next_fileid = 0
         pos = 0
         self._basenames.clear()
-        for res, x in self.raw():
+        for res, x in self._raw():
             if ('startOffset' in x) and ('endOffset' in x):
                 offset = (float(x['startOffset'][:-1]) + float(x['endOffset'][:-1])) / 2
             elif 'endOffset' in x:
@@ -486,6 +520,7 @@ class SpeechView:
             level = 'INFO'
         else:
             level = 'ERROR'
+        logger.log(level, '')
         logger.log(level, f'{"="*100}')
         logger.log(level, f'{bn0} -> {bn1}')
         logger.log(level, f'{'' if level=="INFO" else 'no '}overlap detected')
@@ -507,6 +542,13 @@ class SpeechView:
                     new_window.append(d)
         return new_window
 
+    def gold(self):
+        for d in self.silver():
+            d2 = {**d}
+            d2['speaker'] = 100 * d['fileid']  +  d['speaker']
+            del d2['fileid']
+            del d2['pos']
+            yield d2
 
 class SpeechResult:
     JSON_BASENAME_PATTERN = SpeechExtractor.WAV_BASENAME_PATTERN.replace(r'\.wav',r'\.json')
