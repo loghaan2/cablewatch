@@ -11,11 +11,12 @@ class SchedulerService:
     DO_RECORD_TIME = time(hour=6, minute=25)
     DO_HALT_TIME = time(hour=0, minute=5)
 
-    def __init__(self, *, ingest_service, record_planification=True):
+    def __init__(self, *, ingest_service, record_planification=True, speech_planification=True):
         self._ingest_service = ingest_service
         self._sched = None
         self._launch_or_fetch = 'launch'
         self._record_planification = record_planification
+        self._speech_planification = speech_planification
         ingest_service.registerScheduler(self)
 
     async def start(self):
@@ -35,11 +36,14 @@ class SchedulerService:
             sched.add_job(self.ingest_dohalt, trigger="cron", hour=self.DO_HALT_TIME.hour, minute=self.DO_HALT_TIME.minute)
             logger.warning(f'  - halt at {self.DO_HALT_TIME}')
         else:
-            logger.warning('  (none)')
+            logger.warning('  - (none)')
         sched.add_job(self.ingest_onrecord, trigger="interval", days=1000, id="ingest-onrecord") # triggered from ingest service
         sched.add_job(self.ingest_onhalt, trigger="interval", days=1000, id="ingest-onhalt") # triggered from ingest service
-        sched.add_job(self.speech_upload, trigger="interval", seconds=speech.SpeechExtractor.TIMELINE_DURATION, executor='speech-upload')
-        sched.add_job(self.speech_launch_or_fetch, trigger="interval", seconds=self.SPEECH_LAUNCH_OR_FETCH_SECONDS, executor='speech-launch-or-fetch')
+        if self._speech_planification:
+            sched.add_job(self.speech_upload, trigger="interval", seconds=speech.SpeechTool.TIMELINE_DURATION, executor='speech-upload')
+            sched.add_job(self.speech_launch_or_fetch, trigger="interval", seconds=self.SPEECH_LAUNCH_OR_FETCH_SECONDS, executor='speech-launch-or-fetch')
+        else:
+            logger.warning('no speech planification')
         sched.start()
         logger.info("scheduler service started")
 

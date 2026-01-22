@@ -32,6 +32,7 @@ class ArgumentParser(argparse.ArgumentParser):
         if super_service:
             group = self.add_argument_group("Super service options")
             group.add_argument('-n', '--no-record-planification', dest='record_planification', default=True, action='store_false', help="no record planification")
+            group.add_argument('-N', '--no-speech-planification', dest='speech_planification', default=True, action='store_false', help="no speech planification")
             group.add_argument('-H', '--halt', dest='recording_requested', default=True, action='store_false', help="start ingest in halt mode")
             log_level = 'INFO'
             log_fileoutput = True
