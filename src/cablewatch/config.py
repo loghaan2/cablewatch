@@ -11,8 +11,10 @@ class Config:
     ROOT_WEBDIR = '{PROJECT_DIR}/www'
     DOCS_WEBDIR = '{PROJECT_DIR}/docs'
     LOGS_DIR =  '{PROJECT_DIR}/logs'
+    STASH_DIR = '{PROJECT_DIR}/stash'
     INGEST_DATADIR =  '{PROJECT_DIR}/data/ingest'
     SPEECH_DATADIR =  '{PROJECT_DIR}/data/speech'
+    PAPERS_DATADIR =  '{PROJECT_DIR}/data/papers'
     INGEST_YOUTUBE_STREAM_URL = 'https://www.youtube.com/watch?v=Z-Nwo-ypKtM'
     PROJECT_DIR = f"{str(pathlib.Path(__file__).parent.parent.parent)}"
     YT_DLP_EXTRA_ARGS = ''

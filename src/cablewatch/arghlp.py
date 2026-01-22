@@ -5,7 +5,7 @@ import argparse
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *, actions=None, default_action=None, ingest_tool=None, speech_tool=None, super_service=Nonee):
+    def __init__(self, *, actions=None, default_action=None, ingest_tool=None, speech_tool=None, super_service=None, stash_tool=None):
         if actions is None:
             usage = '%(prog)s <options>'
         else:

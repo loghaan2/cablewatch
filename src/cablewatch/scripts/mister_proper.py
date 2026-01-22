@@ -1,29 +1,16 @@
 #!/usr/bin/env python3
 
 import subprocess
+from rich import print as rich_print
 
 
 def system(cmd):
-    print(cmd)
+    rich_print(f'[green]{cmd}[/]')
     subprocess.run(cmd, shell=True, check=True)
 
 
 def main():
-    try:
-        import _bootstrap_package # noqa: F401
-    except ImportError:
-        pass
-    from cablewatch import config
-    conf = config.Config()
-    system(f"rm -f {conf.INGEST_DATADIR}/*.ts")
-    system(f"rm -f {conf.INGEST_DATADIR}/*.ts.discont-after")
-    system(f"rm -f {conf.INGEST_DATADIR}/timelines/*.json")
-    system(f"rm -f {conf.INGEST_DATADIR}/tmp/*.ts")
-    system(f"rm -f {conf.INGEST_DATADIR}/tmp/output.m3u8")
-    system(f"rm -f {conf.DATABASE_PATH}")
-    system(f"rm -f {conf.SPEECH_DATADIR}/*.wav")
-    system(f"rm -f {conf.SPEECH_DATADIR}/*.json")
-    system(f"rm -f {conf.LOGS_DIR}/*.log")
+    system("cablewatch-stash purge")
     system("cablewatch-speech cleanup-bucket")
 
 if __name__ == '__main__':

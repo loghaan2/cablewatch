@@ -2,7 +2,7 @@ import asyncio
 import signal
 import sys
 from loguru import logger
-from cablewatch import http, ingest, scheduler, arghlp
+from cablewatch import http, ingest, scheduler, arghlp, papers
 
 
 def make_synchrone(async_func):
@@ -48,12 +48,25 @@ async def main():
     logger.info(f'ns: {ns}')
     aborter = Aborter()
     http_service = http.HTTPService()
-    ingest_service = ingest.IngestService(http_service=http_service, aborter=aborter, recording_requested=ns.recording_requested)
-    scheduler_service = scheduler.SchedulerService(ingest_service=ingest_service, record_planification=ns.record_planification)
+    ingest_service = ingest.IngestService(
+        http_service=http_service,
+        aborter=aborter,
+        recording_requested=ns.recording_requested
+    )
+    scheduler_service = scheduler.SchedulerService(
+        ingest_service=ingest_service,
+        record_planification=ns.record_planification,
+        speech_planification=ns.speech_planification,
+    )
+    papers_service = papers.PapersService(
+        http_service=http_service,
+    )
     await http_service.start()
     await scheduler_service.start()
     await ingest_service.start()
+    await papers_service.start()
     await aborter.wait()
+    await papers_service.stop()
     await ingest_service.stop()
     await scheduler_service.stop()
     await http_service.stop()
