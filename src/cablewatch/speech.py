@@ -123,7 +123,7 @@ class SpeechExtractor:
 
     @SEtool_action('init-timeline', 'init')
     def initTimeline(self):
-        begin = datetime.now() - timedelta(seconds=35)
+        begin = datetime.now() - timedelta(seconds=ingest.DEFAULT_DRIFT)
         tl = ingest.IngestTimeLine(self.TIMELINE_NAME, begin=begin, duration=timedelta(seconds=self.TIMELINE_DURATION))
         tl.save()
         logger.info(f'timeline created: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')

@@ -25,6 +25,7 @@ SEGMENT_DATETIME_FORMAT = "%Y%m%d_%Hh%Mm%S"
 SEGMENT_FORMAT = 'segment_{datetime}_{duration_ms}ms.ts'
 SEGMENT_PATTERN = r'^segment_(.+)_(.+)ms\.ts(\.discont-after)?$'
 HLS_LIST_SIZE = 5
+DEFAULT_DRIFT = 35
 
 class IngestService:
     COMMAND = f"""
@@ -60,9 +61,9 @@ class IngestService:
         self._proc = None
         self._background_task = None
         self._status_websockets = set()
-        self._service_start_time = None
-        self._record_start_time = None
-        self._halt_start_time = None
+        self._service_t0 = None
+        self._record_t0 = None
+        self._halt_t0 = None
         self._background_task = None
         self._current_cmd_log_level = None
         self._number_of_launched_records = 0
@@ -71,6 +72,7 @@ class IngestService:
         self._aborter = aborter
         self._scheduler = None
         self._segment_filename = None
+        self._status = None
         http_service.addDecoratedRoutes(self)
 
     def registerScheduler(self, scheduler):
@@ -83,7 +85,7 @@ class IngestService:
 
     async def start(self):
         logger.info("starting ingest service")
-        self._service_start_time = datetime.today()
+        self._service_t0 = datetime.today()
         task = asyncio.create_task(self.runBackgroundTask())
         task.add_done_callback(self.runBackgroundTaskDone)
         self._background_task = task
@@ -97,7 +99,8 @@ class IngestService:
                 await self.halt()
 
     async def halt(self):
-        self._halt_start_time = datetime.today()
+        self._record_t0 = None
+        self._halt_t0 = datetime.today()
         await self.pushStatus()
         self.triggerJob('ingest-onhalt')
         while True:
@@ -105,10 +108,16 @@ class IngestService:
                 if self._recording_requested:
                     return
                 await asyncio.sleep(0.3)
+                await self.pushStatus()
                 if i==99:
                     logger.info('halt')
 
     def getDriftAverage(self):
+        if len(self._drifts)==0:
+            if self._recording_requested:
+                return timedelta(seconds=DEFAULT_DRIFT)
+            else:
+                return None
         sum = timedelta(seconds=0)
         for drift in self._drifts:
             sum += drift
@@ -200,7 +209,8 @@ class IngestService:
         logger.info("run recording")
         logger.info(f"command is {self._command!r}")
         self.triggerJob('ingest-onrecord')
-        self._record_start_time = datetime.today()
+        self._record_t0 = datetime.today()
+        self._halt_t0 = None
         self._number_of_launched_records += 1
         self._segment_filename = None
         self._discont_segment_marker = None
@@ -224,6 +234,7 @@ class IngestService:
                 log_level = await self.processLineIssuedByCommand(line)
                 if log_level is not None:
                     logger.bind(name='[ffmpeg]').log(log_level, line)
+                await self.pushStatus()
                 if i > 100:
                     self.cleanupTempFolder()
                     i = 0
@@ -238,7 +249,7 @@ class IngestService:
             self.checkFatalAtStartup()
 
     def checkFatalAtStartup(self, msg=''):
-        duration = (datetime.now() - self._service_start_time).total_seconds()
+        duration = (datetime.now() - self._service_t0).total_seconds()
         if not (5 < duration < 10):
             return
         rate = self._number_of_failed_records / duration
@@ -302,8 +313,8 @@ class IngestService:
         self._status_websockets.add(ws)
         await ws.prepare(request)
         try:
-            d = self.prepareStatus()
-            await ws.send_json(d)
+            status = self.prepareStatus()
+            await ws.send_json(status)
             async for msg in ws:
                 if msg.type == web.WSMsgType.CLOSE:
                     break
@@ -313,7 +324,7 @@ class IngestService:
                             returned_msg = "not authorized"
                         elif not self._recording_requested:
                             self.requestRecording()
-                            await self.pushStatus()
+                            await self.pushStatus(status)
                             returned_msg = "ok"
                         else:
                             returned_msg = "state error: curently recording"
@@ -322,7 +333,7 @@ class IngestService:
                             returned_msg = "not authorized"
                         elif self._recording_requested:
                             self.requestHalt()
-                            await self.pushStatus()
+                            await self.pushStatus(status)
                             returned_msg = "ok"
                         else:
                             returned_msg = "state error: curently not recording"
@@ -338,25 +349,38 @@ class IngestService:
         sts = {}
         sts['type'] = 'status'
         sts['recording_requested'] = self._recording_requested
-        sts['segment_filename'] = self._segment_filename
+        sts['current_segment_filename'] = self._segment_filename
         if self._proc is not None:
             sts['pid'] = self._proc.pid
         else:
             sts['pid'] = None
-        for k in 'service_start_time', 'record_start_time', 'halt_start_time':
-            value = getattr(self, f'_{k}')
-            if value is None:
+        t = datetime.today()
+        for k in 'service_t0', 'record_t0', 'halt_t0':
+            t0 = getattr(self, f'_{k}')
+            k = k.replace('_t0','_uptime')
+            if t0 is None:
                 sts[k] = None
             else:
-                sts[k] = value.strftime("%Y-%m-%d %Hh%M")
+                uptime = t - t0
+                seconds = (uptime.total_seconds() // 5) * 5
+                uptime = timedelta(seconds=seconds)
+                sts[k] = str(uptime)
         sts['number_of_launched_records'] = self._number_of_launched_records
         sts['number_of_failed_records'] = self._number_of_failed_records
+        drift = self.getDriftAverage()
+        if drift is not None:
+            drift = f'{drift.total_seconds():.1f}s'
+        sts['drift'] = drift
         return sts
 
-    async def pushStatus(self):
-        sts = self.prepareStatus()
+    async def pushStatus(self, status=None):
+        if status is None:
+            status = self.prepareStatus()
+        if status == self._status:
+            return
         for ws in self._status_websockets:
-            await ws.send_json(sts)
+            await ws.send_json(status)
+        self._status = status
 
 
 class IngestTimeLine:
