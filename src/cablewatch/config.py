@@ -8,7 +8,8 @@ class Config:
 
     WEB_LISTENADDR = '0.0.0.0'
     WEB_PORT = 8000
-    WEB_ROOTDIR = '{PROJECT_DIR}/www'
+    ROOT_WEBDIR = '{PROJECT_DIR}/www'
+    DOCS_WEBDIR = '{PROJECT_DIR}/docs'
     LOGS_DIR =  '{PROJECT_DIR}/logs'
     INGEST_DATADIR =  '{PROJECT_DIR}/data/ingest'
     SPEECH_DATADIR =  '{PROJECT_DIR}/data/speech'

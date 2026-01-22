@@ -46,7 +46,12 @@ class HTTPService:
         conf = config.Config()
         self._app.router.add_static(
             prefix="/",
-            path=conf.WEB_ROOTDIR,
+            path=conf.ROOT_WEBDIR,
+            show_index=True
+        )
+        self._app.router.add_static(
+            prefix="/docs",
+            path=f"{conf.DOCS_WEBDIR}",
             show_index=True
         )
 
