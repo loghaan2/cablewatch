@@ -132,7 +132,7 @@ class SpeechExtractor:
     def convertAndUpload(self):
         try:
             tl = ingest.IngestTimeLine.load(self.TIMELINE_NAME)
-        except FileNotFoundError:
+        except KeyError:
             logger.warning(f'cannot open timeline {self.TIMELINE_NAME!r}')
             return
         logger.info(f'timeline before: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')

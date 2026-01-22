@@ -385,6 +385,9 @@ class IngestService:
 
 class IngestTimeLine:
     NAME_PATTERN = r"^[A-Za-z0-9_.-]+$"
+    CONST_INSTANCES = {
+        '.all': dict(begin=None, duration=None),
+    }
 
     @staticmethod
     def isProtectedName(name):
@@ -395,25 +398,37 @@ class IngestTimeLine:
 
     @classmethod
     def checkName(cls, name):
+        if name is None:
+            return
         if not re.fullmatch(cls.NAME_PATTERN, name):
             raise AssertionError(f'{name} is not a valid timeline name')
 
-    @staticmethod
-    def loadAllNames():
+    @classmethod
+    def loadAllNames(cls):
         EXT = '.json'
-        names = []
+        names = set()
         conf = config.Config()
         for bn in os.listdir(f'{conf.INGEST_DATADIR}/timelines'):
             if bn.endswith(EXT):
-                names.append(bn[:-len(EXT)])
-        return names
+                name = bn[:-len(EXT)]
+                cls.checkName(name)
+                names.add(name)
+        for name in cls.CONST_INSTANCES.keys():
+            names.add(name)
+        return list(sorted(names))
 
     @classmethod
     def loadAllInstances(cls):
         instances = {}
-        instances['.glob'] = IngestTimeLine('.glob')
         for name in cls.loadAllNames():
-            tl = cls.load(name)
+            if name in cls.CONST_INSTANCES:
+                kwargs = cls.CONST_INSTANCES[name]
+            else:
+                with open(cls.getJSONFilename(name), 'r') as f:
+                    kwargs = json.loads(f.read())
+                kwargs['begin'] = datetime.fromisoformat(kwargs['begin'])
+                kwargs['duration'] = timedelta(seconds=kwargs['duration'])
+            tl = cls(name, **kwargs)
             instances[name] = tl
         return instances
 
@@ -424,17 +439,13 @@ class IngestTimeLine:
 
     @classmethod
     def load(cls, name):
-        cls.checkName(name)
-        with open(cls.getJSONFilename(name), 'r') as f:
-            d = json.loads(f.read())
-        begin = datetime.fromisoformat(d['begin'])
-        duration = timedelta(seconds=d['duration'])
-        return cls(name, begin=begin, duration=duration)
+        instances = cls.loadAllInstances()
+        return instances[name]
 
     def __init__(self, *args, **kwargs):
         self.init(*args,**kwargs)
 
-    def init(self, name, *, begin=None, duration=None):
+    def init(self, name=None, *, begin=None, duration=None):
         self.checkName(name)
         conf = config.Config()
         all_segment_filenames = glob.glob(f"{conf.INGEST_DATADIR}/segment_*.ts*")
@@ -525,7 +536,7 @@ class IngestTimeLine:
 
     def save(self):
         name = self._name
-        if self.isProtectedName(name):
+        if IngestTimeLine.isProtectedName(name):
             raise AssertionError(f'timeline {name!r} cannot be altered')
         d = dict(
             begin = self._begin.isoformat(),
@@ -658,8 +669,6 @@ class IngestTimeSlice:
             duration += seg.effective_duration
         return duration
 
-
-
     def generateConcatContent(self, *, with_inoutpoints=False):
         s = ''
         if with_inoutpoints:
@@ -774,7 +783,7 @@ class IngestTimeLineTool:
         self._argparser.error(msg)
 
     def ensureName(self, name, mode):
-        exists = (name in IngestTimeLine.loadAllNames()) or self.isProtectedName(name)
+        exists = (name in IngestTimeLine.loadAllNames()) or IngestTimeLine.isProtectedName(name)
         if mode not in ('existing', 'not-existing'):
             raise AssertionError
         if exists and mode=='not-existing':
@@ -787,7 +796,7 @@ class IngestTimeLineTool:
         ns = self._ns
         name = self.getName(0)
         self.ensureName(name, 'not-existing')
-        tl = IngestTimeLine(name=name, begin=ns.begin, duration=ns.duration)
+        tl = IngestTimeLine(name, begin=ns.begin, duration=ns.duration)
         tl.save()
 
     @TLtool_action('adv', 'advance')
@@ -835,11 +844,8 @@ class IngestTimeLineTool:
         table.add_column("DURATION")
         table.add_column("NUM_DISCONTINUITIES")
         for name, tl in IngestTimeLine.loadAllInstances().items():
-            if tl.duration.total_seconds() == 0:
-                duration = "0s"
-            else:
-                duration = str(tl.duration)
-            table.add_row(name, tl.begin.isoformat(), tl.end.isoformat(), duration, f'{tl.getNumberOfDiscontinuities()}')
+            duration = str(timedelta(seconds=int(tl.duration.total_seconds())))
+            table.add_row(name, tl.begin.strftime(SEGMENT_DATETIME_FORMAT), tl.end.strftime(SEGMENT_DATETIME_FORMAT), duration, f'{tl.getNumberOfDiscontinuities()}')
         rich_print(table)
 
     @TLtool_action('sl','slices')
@@ -856,9 +862,9 @@ class IngestTimeLineTool:
             return '' if pt is None else pt
         for i,slice in enumerate(tl.slices()):
             table.add_row(*seprator)
-            table.add_row(f'[cyan]slice #{i}[/cyan]','','',f'[cyan]{slice.duration}[/cyan]')
+            table.add_row(f'[cyan]slice #{i}[/cyan]','','',f'[cyan]{timedelta(seconds=int(slice.duration.total_seconds()))}[/cyan]')
             for seg in slice.segments:
-                table.add_row(seg.basename,f'{_(seg.inpoint)}',f'{_(seg.outpoint)}',f'{seg.effective_duration}')
+                table.add_row(seg.basename,f'{_(seg.inpoint)}',f'{_(seg.outpoint)}',f'{timedelta(seconds=int(seg.effective_duration.total_seconds()))}')
         print()
         rich_print(table)
 
@@ -880,7 +886,7 @@ class IngestTimeLineTool:
     @TLtool_action('pipe')
     def pipe(self):
         ns = self._ns
-        tl = IngestTimeLine(name='.play', begin=ns.begin, duration=ns.duration)
+        tl = IngestTimeLine(begin=ns.begin, duration=ns.duration)
         slice = list(tl.slices())[ns.slice_index]
         concat = slice.generateConcatCommand(only=ns.only, shell=False)
         cmd = ['ffmpeg'] + concat
