@@ -868,16 +868,6 @@ class IngestTimeLineTool:
         print()
         rich_print(table)
 
-    @TLtool_action('concat')
-    def concat(self):
-        ns = self._ns
-        name = self.getName(0)
-        self.ensureName(name, 'existing')
-        tl = IngestTimeLine.load(name)
-        slice = list(tl.slices())[ns.slice_index]
-        cmd = slice.generateConcatCommand(only=ns.only, shell=True)
-        print(cmd)
-
     @TLtool_action('ns')
     def ns(self):
         ns = self._ns
