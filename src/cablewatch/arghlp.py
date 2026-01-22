@@ -5,7 +5,7 @@ import argparse
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *, actions=None, default_action=None, timeline_tool=None, speech_extractor=None, super_service=None):
+    def __init__(self, *, actions=None, default_action=None, ingest_tool=None, speech_tool=None, super_service=Nonee):
         if actions is None:
             usage = '%(prog)s <options>'
         else:
@@ -13,17 +13,17 @@ class ArgumentParser(argparse.ArgumentParser):
         super().__init__(usage=usage)
         self.__actions = actions
         self.__default_action = default_action
-        if timeline_tool:
+        if ingest_tool:
             group = self.add_argument_group("Timeline tool options")
             group.add_argument('-s','--slice-index', dest='slice_index', default=0, type=int, help="set slice index")
             group.add_argument('--audio', dest='only', default=None, action='store_const', const='audio', help="only audio")
             group.add_argument('--video', dest='only', default=None, action='store_const', const='video', help="only video")
-        if speech_extractor:
+        if speech_tool:
             group = self.add_argument_group("Speech extractor tool options")
-            group.add_argument('-k', '--keep-bucket', dest='keep_bucket', default=speech_extractor.KEEP_BUCKET, action='store_true', help="keep files in buckets")
-            group.add_argument('-c', '--local-copy', dest='local_copy', default=speech_extractor.LOCAL_COPY, action='store_true',  help="make a local copy .wav and .json files")
+            group.add_argument('-k', '--keep-bucket', dest='keep_bucket', default=speech_tool.KEEP_BUCKET, action='store_true', help="keep files in buckets")
+            group.add_argument('-c', '--local-copy', dest='local_copy', default=speech_tool.LOCAL_COPY, action='store_true',  help="make a local copy .wav and .json files")
             group.add_argument('-f', '--output-format', dest='output_format', default=None, help="output format")
-        if speech_extractor or timeline_tool:
+        if speech_tool or ingest_tool:
             group = self.add_argument_group("Time range options")
             group.add_argument('-B', '--begin', dest='begin', default=None, help="begin")
             group.add_argument('-E', '--end', dest='end', default=None, help="end")

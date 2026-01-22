@@ -40,3 +40,21 @@ def log_exception(decorated=None, **kwargs):
         return inner(decorated)
     else:
         return inner
+
+
+class ToolDecorator:
+    def __init__(self):
+        self._actions = {}
+
+    def getActionNames(self):
+        return list(self._actions.keys())
+
+    def getActionCallable(self, name):
+        return self._actions[name]
+
+    def action(self, *names):
+        def inner(obj):
+            for n in names:
+                self._actions[n]=obj
+            return obj
+        return inner

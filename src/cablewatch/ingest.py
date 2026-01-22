@@ -17,7 +17,7 @@ import psutil
 from rich import print as rich_print
 from rich.table import Table
 from cablewatch import config, arghlp
-from cablewatch.decorators import http_get
+from cablewatch.decorators import http_get, ToolDecorator
 
 
 SEGMENT_DURATION = 30
@@ -736,34 +736,26 @@ class IngestTimeSlice:
         return cmd
 
 
-TLTOOL_ACTIONS = {}
+tooldec = ToolDecorator()
 
 
-def TLtool_action(*names):
-    def inner(obj):
-        for n in names:
-            TLTOOL_ACTIONS[n]=obj
-        return obj
-    return inner
-
-
-def timeline_tool_main():
-    tool = IngestTimeLineTool(sys.argv)
+def main():
+    tool = IngestTool(sys.argv)
     tool()
 
 
-class IngestTimeLineTool:
+class IngestTool:
     def __init__(self, args):
-        p = arghlp.ArgumentParser(timeline_tool=self, actions=TLTOOL_ACTIONS.keys())
+        p = arghlp.ArgumentParser(ingest_tool=self, actions=tooldec.getActionNames(), default_action='list')
         self._ns = p.parse_args(args)
         self._argparser = p
 
     def __call__(self):
         ns = self._ns
-        f = TLTOOL_ACTIONS[ns.action]
+        f = tooldec.getActionCallable(ns.action)
         f(self)
 
-    @TLtool_action('rm','remove')
+    @tooldec.action('rm','remove')
     def remove(self):
         ns = self._ns
         for name in ns.largs:
@@ -791,7 +783,7 @@ class IngestTimeLineTool:
         if not exists and mode=='existing':
             self.error(f'timeline {name!r} does not exist')
 
-    @TLtool_action('create')
+    @tooldec.action('create')
     def create(self):
         ns = self._ns
         name = self.getName(0)
@@ -799,7 +791,7 @@ class IngestTimeLineTool:
         tl = IngestTimeLine(name, begin=ns.begin, duration=ns.duration)
         tl.save()
 
-    @TLtool_action('adv', 'advance')
+    @tooldec.action('adv', 'advance')
     def advance(self):
         name = self.getName(0)
         self.ensureName(name, 'existing')
@@ -807,7 +799,7 @@ class IngestTimeLineTool:
         tl.advance()
         tl.save()
 
-    @TLtool_action('reset')
+    @tooldec.action('reset')
     def reset(self):
         name = self.getName(0)
         self.ensureName(name, 'existing')
@@ -815,7 +807,7 @@ class IngestTimeLineTool:
         tl.reset()
         tl.save()
 
-    @TLtool_action('cp','copy')
+    @tooldec.action('cp','copy')
     def copy(self):
         src_name = self.getName(0)
         dst_name = self.getName(1)
@@ -825,7 +817,7 @@ class IngestTimeLineTool:
         tl.rename(dst_name)
         tl.save()
 
-    @TLtool_action('ed','edit')
+    @tooldec.action('ed','edit')
     def edit(self):
         name = self.getName(0)
         tl = IngestTimeLine.load(name)
@@ -835,7 +827,7 @@ class IngestTimeLineTool:
         os.execvp(cmd[0],cmd)
         raise AssertionError('execvp() failed')
 
-    @TLtool_action('ls','list')
+    @tooldec.action('ls','list')
     def list(self):
         table = Table()
         table.add_column("NAME")
@@ -848,7 +840,7 @@ class IngestTimeLineTool:
             table.add_row(name, tl.begin.strftime(SEGMENT_DATETIME_FORMAT), tl.end.strftime(SEGMENT_DATETIME_FORMAT), duration, f'{tl.getNumberOfDiscontinuities()}')
         rich_print(table)
 
-    @TLtool_action('sl','slices')
+    @tooldec.action('sl','slices')
     def slices(self):
         table = Table()
         headers = ["SLICE_ID/SEGMENT_BASENAME", "INPOINT", "OUTPOINT", "DURATION"]
@@ -868,12 +860,12 @@ class IngestTimeLineTool:
         print()
         rich_print(table)
 
-    @TLtool_action('ns')
+    @tooldec.action('ns')
     def ns(self):
         ns = self._ns
         rich_print(ns)
 
-    @TLtool_action('pipe')
+    @tooldec.action('pipe')
     def pipe(self):
         ns = self._ns
         tl = IngestTimeLine(begin=ns.begin, duration=ns.duration)

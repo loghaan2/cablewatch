@@ -38,7 +38,7 @@ build-backend = "poetry.core.masonry.api"
 [project.scripts]
 cablewatch-super = "cablewatch.super:main"
 cablewatch-download-roadmap = "cablewatch.scripts.download_roadmap:main"
-cablewatch-timeline = "cablewatch.ingest:timeline_tool_main"
+cablewatch-ingest = "cablewatch.ingest:main"
 cablewatch-mister-proper = "cablewatch.scripts.mister_proper:main"
 cablewatch-speech = "cablewatch.speech:main"
 cablewatch-adduser = "cablewatch.user:main"

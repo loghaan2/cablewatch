@@ -7,7 +7,7 @@ from cablewatch.decorators import log_exception
 
 
 class SchedulerService:
-    SPEECH_LAUNCH_OR_FETCH_SECONDS = speech.SpeechExtractor.TIMELINE_DURATION * 4
+    SPEECH_LAUNCH_OR_FETCH_SECONDS = speech.SpeechTool.TIMELINE_DURATION * 4
     DO_RECORD_TIME = time(hour=6, minute=25)
     DO_HALT_TIME = time(hour=0, minute=5)
 
@@ -72,8 +72,8 @@ class SchedulerService:
     @log_exception
     def ingest_onrecord(self):
         logger.warning("ingest_onrecord()")
-        se = speech.SpeechExtractor()
-        se.initTimeline()
+        tool = speech.SpeechTool()
+        tool.initTimeline()
         logger.warning("/ingest_onrecord()")
 
     @log_exception
@@ -84,18 +84,18 @@ class SchedulerService:
     @log_exception
     def speech_upload(self):
         logger.warning("speech_upload()")
-        se = speech.SpeechExtractor()
-        se.convertAndUpload()
+        tool = speech.SpeechTool()
+        tool.convertAndUpload()
         logger.warning("/speech_upload()")
 
     @log_exception
     def speech_launch_or_fetch(self):
         logger.warning("speech_launch_or_fetch()")
-        se = speech.SpeechExtractor()
+        tool = speech.SpeechTool()
         if self._launch_or_fetch == 'launch':
-            se.launchTranscriptions()
+            tool.launchTranscriptions()
             self._launch_or_fetch = 'fetch'
         else:
-            se.fetchResults()
+            tool.fetchResults()
             self._launch_or_fetch = 'launch'
         logger.warning("/speech_launch_or_fetch()")

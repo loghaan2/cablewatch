@@ -27,12 +27,13 @@ from google.cloud.speech_v2.types import (
 from rich.table import Table
 from rich import print as rich_print
 from rich.console import Console
-from cablewatch import config, ingest, loghlp, arghlp
+from cablewatch import config, ingest, arghlp
+from cablewatch.decorators import ToolDecorator
 
 
 def main():
-    extractor = SpeechExtractor(sys.argv)
-    extractor()
+    tool = SpeechTool(sys.argv)
+    tool()
 
 
 def readline(fd):
@@ -47,21 +48,13 @@ def readline(fd):
             line += ch
 
 
-SETOOL_ACTIONS = {}
-
-
-def SEtool_action(*names):
-    def inner(obj):
-        for n in names:
-            SETOOL_ACTIONS[n]=obj
-        return obj
-    return inner
+tooldec = ToolDecorator()
 
 
 DATETIME_FORMAT = "%Y%m%d_%Hh%Mm%S"
 
 
-class SpeechExtractor:
+class SpeechTool:
     LOCATION = 'eu'
     SV2_LANGUAGE = 'fr-FR'
     SV2_MODEL = 'chirp_3'
@@ -83,11 +76,9 @@ class SpeechExtractor:
     def __init__(self, args=None, action=None, local_copy=LOCAL_COPY, keep_bucket=KEEP_BUCKET):
         if args is None:
             self._ns = argparse.Namespace(action=action, local_copy=local_copy, keep_bucket=keep_bucket)
-            self._argparser = None
         else:
-            p = arghlp.ArgumentParser(speech_extractor=self, actions=SETOOL_ACTIONS.keys())
+            p = arghlp.ArgumentParser(speech_tool=self, actions=tooldec.getActionNames(), default_action='list-bucket')
             self._ns = p.parse_args(args)
-            self._argparser = p
         conf = config.Config()
         client_options = {"api_endpoint": f"{self.LOCATION}-speech.googleapis.com"}
         self._sv2_client = speech_v2.SpeechClient(client_options=client_options)
@@ -108,7 +99,7 @@ class SpeechExtractor:
 
     def __call__(self):
         ns = self._ns
-        f = SETOOL_ACTIONS[ns.action]
+        f = tooldec.getActionCallable(ns.action)
         f(self)
 
     def secondsToNumSamples(self, seconds):
@@ -121,14 +112,14 @@ class SpeechExtractor:
             return math.inf
         return nsamples / (self.WAV_SAMPLE_RATE * self.WAV_SAMPLE_WIDTH)
 
-    @SEtool_action('init-timeline', 'init')
+    @tooldec.action('init-timeline', 'init')
     def initTimeline(self):
         begin = datetime.now() - timedelta(seconds=ingest.DEFAULT_DRIFT)
         tl = ingest.IngestTimeLine(self.TIMELINE_NAME, begin=begin, duration=timedelta(seconds=self.TIMELINE_DURATION))
         tl.save()
         logger.info(f'timeline created: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')
 
-    @SEtool_action('upload', 'convert-and-upload')
+    @tooldec.action('upload', 'convert-and-upload')
     def convertAndUpload(self):
         try:
             tl = ingest.IngestTimeLine.load(self.TIMELINE_NAME)
@@ -196,7 +187,6 @@ class SpeechExtractor:
                                 active_fds.remove(fd)
                                 break
                             wav_frames += wav_chunk
-
         slice_duration = slice.duration.total_seconds()
         wav_duration = self.numSamplesToSeconds(len(wav_frames))
         duration_ms = int(wav_duration * 1000)
@@ -226,7 +216,7 @@ class SpeechExtractor:
         blob.upload_from_file(buf, content_type="audio/wav")
         logger.info(f"{basename!r} uploaded")
 
-    @SEtool_action('launch-transcriptions', 'launch')
+    @tooldec.action('launch-transcriptions', 'launch')
     def launchTranscriptions(self):
         conf = config.Config()
         client = self._storage_client
@@ -270,7 +260,7 @@ class SpeechExtractor:
             blob.upload_from_file(buf, content_type="text/plain")
             logger.info(f"  - {f.uri}")
 
-    @SEtool_action('fetch-results', 'fetch')
+    @tooldec.action('fetch-results', 'fetch')
     def fetchResults(self):
         ns = self._ns
         conf = config.Config()
@@ -301,7 +291,7 @@ class SpeechExtractor:
                     logger.info(f"delete blob {blob.name!r}")
                     blob.delete()
 
-    @SEtool_action('list-bucket', 'lsb')
+    @tooldec.action('list-bucket', 'lsb')
     def listBucket(self):
         table = Table()
         table.add_column("NAME")
@@ -324,7 +314,7 @@ class SpeechExtractor:
             table.add_row(blob.name, size, content)
         rich_print(table)
 
-    @SEtool_action('cleanup-bucket', 'clb')
+    @tooldec.action('cleanup-bucket', 'clb')
     def cleanupBucket(self):
         client = self._storage_client
         conf = config.Config()
@@ -338,7 +328,7 @@ class SpeechExtractor:
             logger.warning(f'delete {blob.name}')
             blob.delete()
 
-    @SEtool_action('print-namespace', 'ns')
+    @tooldec.action('print-namespace', 'ns')
     def printNamespace(self):
         ns = self._ns
         rich_print(ns)
@@ -348,7 +338,7 @@ class SpeechExtractor:
         for lvl in 'debug', 'info', 'warning', 'error', 'critical':
             logger.log(lvl.upper(), f'{lvl} !')
 
-    @SEtool_action('bronze', 'silver', 'gold')
+    @tooldec.action('bronze', 'silver', 'gold')
     def view(self):
         console = Console(force_terminal=True)
         ns = self._ns
@@ -556,7 +546,7 @@ class SpeechView:
             yield d2
 
 class SpeechResult:
-    JSON_BASENAME_PATTERN = SpeechExtractor.WAV_BASENAME_PATTERN.replace(r'\.wav',r'\.json')
+    JSON_BASENAME_PATTERN = SpeechTool.WAV_BASENAME_PATTERN.replace(r'\.wav',r'\.json')
 
     @staticmethod
     def fromFileName(filename):
