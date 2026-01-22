@@ -1,11 +1,117 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Hello</title>
+<meta charset="UTF-8">
+<title>cablewatch starting page</title>
+<style>
+/* Fond dark général */
+body {
+    font-family: "Segoe UI", Roboto, Helvetica, sans-serif;
+    background-color: #1e1e2f;
+    color: #e0e0e0;
+    margin: 2rem;
+    line-height: 1.6;
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #82c7ff;
+}
+
+code {
+    background-color: #2f2f3f;
+    color: #f0f0f0;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.95em;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #444;
+    margin: 1.5rem 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #2a2a3a;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+th, td {
+    padding: 0.8rem 1rem;
+    text-align: left;
+}
+
+th {
+    background-color: #3b82f6;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: #2f2f40;
+}
+
+tr:hover {
+    background-color: #3a3a5a;
+}
+
+a {
+    color: #82c7ff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+</style>
 </head>
 <body>
-    <h1>Hello from <code>cablewatch.web</code></h1>
-    <hr/>
+<h1><code>cablewatch</code> starting page</h1>
+<hr/>
+<table>
+<thead>
+<tr>
+    <th></th>
+    <th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+    <td><code>cablewatch.ingest</code> backoffice</td>
+    <td><a href="ingest.html">view</a></td>
+</tr>
+<tr>
+    <td><code>cablewatch.papers</code> backoffice</td>
+    <td><a href="papers.html">view</a></td>
+</tr>
+<tr>
+    <td><code>README.rst</code></td>
+    <td><a href="docs/build/README/README/index.html">view</a></td>
+</tr>
+<tr>
+    <td><code>ROADMAP.md</code></td>
+    <td><a href="docs/build/ROADMAP/ROADMAP/index.html">view</a></td>
+</tr>
+<tr>
+    <td>Project presentation sldes <i>(Jan 2026)</i></td>
+    <td>
+        <a href="docs/20260113_CABLEWATCH_PRESENTATION.pdf">view</a>
+        &nbsp;
+        <a href="docs/20260113_CABLEWATCH_PRESENTATION.pdf" download>download</a>
+    </td>
+</tr>
+<tr>
+    <td>Project proposal slides <i>(Dec 2025)</i></td>
+    <td><a href="docs/project_proposal/project_proposal/index.html">view</a></td>
+</tr>
+</tbody>
+</table>
 </body>
 </html>
