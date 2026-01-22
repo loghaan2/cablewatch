@@ -343,6 +343,11 @@ class SpeechExtractor:
         ns = self._ns
         rich_print(ns)
 
+    @tooldec.action('test-logger', 'log')
+    def testLogger(self):
+        for lvl in 'debug', 'info', 'warning', 'error', 'critical':
+            logger.log(lvl.upper(), f'{lvl} !')
+
     @SEtool_action('bronze', 'silver', 'gold')
     def view(self):
         console = Console(force_terminal=True)
