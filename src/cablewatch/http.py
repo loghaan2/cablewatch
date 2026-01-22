@@ -6,14 +6,17 @@ from cablewatch import config, user
 
 
 class RouterDecorator:
-    ATTRIBUTE_NAME = '__cablewatch_http_router'
+    ATTRIBUTE_NAME = '__cablewatch_http_routes'
 
     def __init__(self, method):
         self._method = method
 
     def __call__(self, path, **kwargs):
         def inner(handler):
-            setattr(handler, self.ATTRIBUTE_NAME, (self._method, path, kwargs))
+            if not hasattr(handler, self.ATTRIBUTE_NAME):
+                setattr(handler, self.ATTRIBUTE_NAME, [])
+            routes = getattr(handler, self.ATTRIBUTE_NAME)
+            routes += [(self._method, path, kwargs)]
             return handler
         return inner
 
@@ -52,11 +55,12 @@ class HTTPService:
         for name in dir(instance):
             handler = getattr(instance, name)
             try:
-                method, path, kwargs = getattr(handler, RouterDecorator.ATTRIBUTE_NAME)
+                routes = getattr(handler, RouterDecorator.ATTRIBUTE_NAME)
             except AttributeError:
                 continue
-            f = getattr(router, method)
-            f(path, handler, **kwargs)
+            for method, path, kwargs in routes:
+                f = getattr(router, method)
+                f(path, handler, **kwargs)
 
     async def start(self):
         logger.info("starting web service")
