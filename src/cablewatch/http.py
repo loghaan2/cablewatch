@@ -21,12 +21,18 @@ class RouterDecorator:
         return inner
 
 
+def make_auth_headers(*, realm="Restricted"):
+    return {"WWW-Authenticate": 'Basic realm="{realm}"'}
+
+
 @web.middleware
 async def perform_basic_authentification(request, handler):
+    if request.path == "/logout":
+        return await handler(request)
     auth = request.headers.get("Authorization")
     if not auth or not auth.startswith("Basic "):
         raise web.HTTPUnauthorized(
-            headers={"WWW-Authenticate": 'Basic realm="Restricted"'}
+            headers=make_auth_headers()
         )
     encoded = auth.split(" ", 1)[1]
     decoded = base64.b64decode(encoded).decode()
@@ -34,7 +40,7 @@ async def perform_basic_authentification(request, handler):
     u = user.User(username)
     if not u.verifyPassword(password):
         raise web.HTTPUnauthorized(
-            headers={"WWW-Authenticate": 'Basic realm="Restricted"'}
+            headers=make_auth_headers()
         )
     request["user"] = u
     return await handler(request)
@@ -53,6 +59,17 @@ class HTTPService:
             prefix="/docs",
             path=f"{conf.DOCS_WEBDIR}",
             show_index=True
+        )
+        self._app.router.add_get(
+            "/logout",
+            self.logout
+        )
+
+    async def logout(self, request):
+        return web.Response(
+            status=401,
+            text="logged out",
+            headers=make_auth_headers(realm="logout")
         )
 
     def addDecoratedRoutes(self, instance):
