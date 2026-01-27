@@ -35,7 +35,7 @@ class PapersService:
                 continue
             if os.path.isdir(pth):
                 continue
-            if not fnmatch.fnmatch(bn, filter):
+            if not fnmatch.fnmatch(bn.lower(), filter.lower()):
                 continue
             result.append(bn)
         result.sort()

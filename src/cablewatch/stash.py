@@ -4,16 +4,13 @@ import time
 import subprocess
 import re
 from rich import print as rich_print
-from cablewatch import config, arghlp
+from cablewatch import config
 from cablewatch.decorators import ToolDecorator
 
 
 def main():
-    tool = StashTool(sys.argv)
+    tool = StashTool(args=sys.argv, action='list')
     tool()
-
-
-tooldec = ToolDecorator()
 
 
 def system(cmd):
@@ -27,18 +24,12 @@ def system(cmd):
     )
 
 
-class StashTool:
+tooldec = ToolDecorator()
+
+
+class StashTool(tooldec.BaseTool):
     EXT = '.tar'
     ENTRY_NAME_PATTERN = r"^[A-Za-z0-9_.-]+$"
-
-    def __init__(self, args):
-        p = arghlp.ArgumentParser(stash_tool=self, actions=tooldec.getActionNames(), default_action='list')
-        self._ns = p.parse_args(args)
-
-    def __call__(self):
-        ns = self._ns
-        f = tooldec.getActionCallable(ns.action)
-        f(self)
 
     def getSourceEntryNames(self):
         conf = config.Config()
@@ -95,6 +86,7 @@ class StashTool:
         name = self.getSourceEntryName()
         cmd = f"tar xvf {conf.STASH_DIR}/{name}{self.EXT}"
         system(cmd)
+        return name
 
     @tooldec.action('push')
     def push(self):
@@ -104,7 +96,8 @@ class StashTool:
     @tooldec.action('pop')
     def pop(self):
         self.purge()
-        self.load()
+        name = self.load()
+        self._remove(name)
 
     @tooldec.action('content')
     def content(self):
@@ -119,21 +112,29 @@ class StashTool:
         system(f"rm -f {conf.INGEST_DATADIR}/*.ts")
         system(f"rm -f {conf.INGEST_DATADIR}/*.ts.discont-after")
         system(f"rm -f {conf.INGEST_DATADIR}/timelines/*.json")
+        system(f"rm -f {conf.INGEST_DATADIR}/timelines/*.json~")
         system(f"rm -f {conf.INGEST_DATADIR}/tmp/*.ts")
         system(f"rm -f {conf.INGEST_DATADIR}/tmp/output.m3u8")
-        system(f"rm -f {conf.PAPERS_DATADIR}/*")
-        system(f"rm -f {conf.DATABASE_PATH}")
         system(f"rm -f {conf.SPEECH_DATADIR}/*.wav")
         system(f"rm -f {conf.SPEECH_DATADIR}/*.json")
+        system(f"rm -f {conf.SPEECH_DATADIR}/*.json~")
+        system(f"rm -f {conf.BANNERS_DATADIR}/*.png")
+        system(f"rm -f {conf.BANNERS_DATADIR}/*.json")
+        system(f"rm -f {conf.BANNERS_DATADIR}/*.json~")
+        system(f"rm -f {conf.PAPERS_DATADIR}/*")
+        system(f"rm -f {conf.DATABASE_PATH}")
         system(f"rm -f {conf.LOGS_DIR}/*.log")
+
+    def _remove(self, name):
+        conf = config.Config()
+        cmd = f"rm -f {conf.STASH_DIR}/{name}{self.EXT}"
+        system(cmd)
 
     @tooldec.action('remove', 'rm')
     def remove(self):
         ns = self._ns
-        conf = config.Config()
         for name in ns.largs:
-            cmd = f"rm -f {conf.STASH_DIR}/{name}{self.EXT}"
-            system(cmd)
+            self._remove(name)
 
     @tooldec.action('clear')
     def clear(self):

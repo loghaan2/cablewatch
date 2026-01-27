@@ -7,8 +7,8 @@ import textwrap
 import time
 import glob
 import json
-import tempfile
 import copy
+import math
 import shlex
 from datetime import datetime, timedelta
 from loguru import logger
@@ -16,7 +16,7 @@ from aiohttp import web,  WSCloseCode
 import psutil
 from rich import print as rich_print
 from rich.table import Table
-from cablewatch import config, arghlp
+from cablewatch import config
 from cablewatch.decorators import http_get, ToolDecorator
 
 
@@ -25,7 +25,7 @@ SEGMENT_DATETIME_FORMAT = "%Y%m%d_%Hh%Mm%S"
 SEGMENT_FORMAT = 'segment_{datetime}_{duration_ms}ms.ts'
 SEGMENT_PATTERN = r'^segment_(.+)_(.+)ms\.ts(\.discont-after)?$'
 HLS_LIST_SIZE = 5
-DEFAULT_DRIFT = 35
+
 
 class IngestService:
     COMMAND = f"""
@@ -102,7 +102,6 @@ class IngestService:
         self._record_t0 = None
         self._halt_t0 = datetime.today()
         await self.pushStatus()
-        self.triggerJob('ingest-onhalt')
         while True:
             for i in range(100):
                 if self._recording_requested:
@@ -114,10 +113,7 @@ class IngestService:
 
     def getDriftAverage(self):
         if len(self._drifts)==0:
-            if self._recording_requested:
-                return timedelta(seconds=DEFAULT_DRIFT)
-            else:
-                return None
+            return None
         sum = timedelta(seconds=0)
         for drift in self._drifts:
             sum += drift
@@ -174,6 +170,8 @@ class IngestService:
                         continue
                     logger.info(f'move {tmp_segment_filename!r} to {segment_filename!r}')
                     os.rename(tmp_segment_filename, segment_filename)
+                    if self._segment_filename is None:
+                        self.triggerJob('ingest-onfirstseg')
                     self._segment_filename = segment_filename
                     self._discont_segment_marker = segment_filename + '.discont-after'
             expected_count_values = set(sorted(range(3, HLS_LIST_SIZE*3+1, 3)))
@@ -208,7 +206,6 @@ class IngestService:
     async def runCommand(self):
         logger.info("run recording")
         logger.info(f"command is {self._command!r}")
-        self.triggerJob('ingest-onrecord')
         self._record_t0 = datetime.today()
         self._halt_t0 = None
         self._number_of_launched_records += 1
@@ -426,7 +423,7 @@ class IngestTimeLine:
             else:
                 with open(cls.getJSONFilename(name), 'r') as f:
                     kwargs = json.loads(f.read())
-                kwargs['begin'] = datetime.fromisoformat(kwargs['begin'])
+                kwargs['begin'] = datetime.strptime(kwargs['begin'], SEGMENT_DATETIME_FORMAT)
                 kwargs['duration'] = timedelta(seconds=kwargs['duration'])
             tl = cls(name, **kwargs)
             instances[name] = tl
@@ -445,27 +442,22 @@ class IngestTimeLine:
     def __init__(self, *args, **kwargs):
         self.init(*args,**kwargs)
 
-    def init(self, name=None, *, begin=None, duration=None):
+    def init(self, name=None, *, begin, duration):
         self.checkName(name)
         conf = config.Config()
         all_segment_filenames = glob.glob(f"{conf.INGEST_DATADIR}/segment_*.ts*")
         all_segment_filenames.sort()
         segments = {}
+        self._segments = segments
         for fn in all_segment_filenames:
             seg = IngestSegment.fromFileName(fn)
             segments[seg.begin] = seg
-        if len(segments) > 0:
-            first_seg = next(iter(segments.values()))
-            last_seg = next(reversed(segments.values()))
-        if begin is None:
+        if name == '.all':
             if len(segments) > 0:
-                begin = first_seg.begin
+                begin = self.first_segment.begin
+                duration = self.last_segment.begin - self.first_segment.begin + self.last_segment.duration
             else:
                 begin = datetime.combine(datetime.today(), datetime.min.time())
-        if duration is None:
-            if len(segments) > 0:
-                duration = last_seg.begin - first_seg.begin + last_seg.duration
-            else:
                 duration = timedelta(seconds=0)
         for seg in list(segments.values()):
             if (seg.begin + seg.duration) < begin:
@@ -473,18 +465,29 @@ class IngestTimeLine:
             elif seg.begin >= (begin + duration):
                 del segments[seg.begin]
         if len(segments) > 0:
-            first_seg = next(iter(segments.values()))
-            last_seg = next(reversed(segments.values()))
             end = (begin + duration)
-            seg_end =(last_seg.begin + last_seg.duration)
-            if begin > first_seg.begin:
-                first_seg.inpoint = begin - first_seg.begin
+            seg_end =(self.last_segment.begin + self.last_segment.duration)
+            if begin > self.first_segment.begin:
+                self.first_segment.inpoint = begin - self.first_segment.begin
             if seg_end > end:
-                last_seg.outpoint = last_seg.duration - (seg_end - end)
+                self.last_segment.outpoint = self.last_segment.duration - (seg_end - end)
         self._name = name
         self._begin = begin
         self._duration = duration
-        self._segments = segments
+
+    @property
+    def first_segment(self):
+        if len(self._segments) > 0:
+            first_seg = next(iter(self._segments.values()))
+            return first_seg
+        raise AssertionError('no segments')
+
+    @property
+    def last_segment(self):
+        if len(self._segments) > 0:
+            last_seg = next(reversed(self._segments.values()))
+            return last_seg
+        raise AssertionError('no segments')
 
     @property
     def name(self):
@@ -501,6 +504,16 @@ class IngestTimeLine:
     @property
     def duration(self):
         return self._duration
+
+    @property
+    def effective_duration(self):
+        duration = timedelta(seconds=0)
+        for slc in self.slices():
+            duration += slc.effective_duration
+        return duration
+
+    def isReady(self):
+        return math.isclose(self.duration.total_seconds(), self.effective_duration.total_seconds(), rel_tol=0.1)
 
     @property
     def segments(self):
@@ -524,9 +537,9 @@ class IngestTimeLine:
         begin = self._begin + duration
         self.init(self._name, begin=begin, duration=duration)
 
-    def reset(self):
+    def retreat(self):
         duration = self._duration
-        begin = None
+        begin = self._begin - duration
         self.init(self._name, begin=begin, duration=duration)
 
     def rename(self, name):
@@ -536,10 +549,10 @@ class IngestTimeLine:
 
     def save(self):
         name = self._name
-        if IngestTimeLine.isProtectedName(name):
+        if self.isProtectedName(name):
             raise AssertionError(f'timeline {name!r} cannot be altered')
         d = dict(
-            begin = self._begin.isoformat(),
+            begin = self._begin.strftime(SEGMENT_DATETIME_FORMAT),
             duration = self._duration.total_seconds(),
         )
         with open(self.getJSONFilename(name), 'w') as f:
@@ -661,39 +674,14 @@ class IngestTimeSlice:
         last_seg = self._segments[-1]
         return last_seg.begin + last_seg.duration
 
-
     @property
-    def duration(self):
+    def effective_duration(self):
         duration = timedelta(seconds=0)
         for seg in self._segments:
             duration += seg.effective_duration
         return duration
 
-    def generateConcatContent(self, *, with_inoutpoints=False):
-        s = ''
-        if with_inoutpoints:
-            start_line =''
-        else:
-            start_line ='#'
-        for seg in self._segments:
-            s += f"file '{seg.filename}'\n"
-            if seg.inpoint:
-                s += f'{start_line} inpoint {seg.inpoint.total_seconds()}\n'
-            if seg.outpoint:
-                s += f'{start_line} outpoint {seg.outpoint.total_seconds()}\n'
-            s += '\n'
-        return s
-
-    def concatFile(self, *, delete=True, with_inoutpoints=False):
-        conf = config.Config()
-        tl = self._timeline
-        f = tempfile.NamedTemporaryFile(dir=f"{conf.INGEST_DATADIR}/tmp/", prefix=f'{tl.name}_', suffix=".concat", mode='w', delete=delete)
-        content = self.generateConcatContent(with_inoutpoints=with_inoutpoints)
-        f.write(content)
-        f.flush()
-        return f
-
-    def generateConcatCommand(self,*,only=None,shell=False):
+    def generateConcatCommand(self,*,only=None,shell=False,extra_filter=None):
         cmd = []
         filter = ""
         if only is None:
@@ -722,6 +710,8 @@ class IngestTimeSlice:
                     raise AssertionError
                 cmd += ['-ss', f'{seg.inpoint.total_seconds()}', '-t', f'{duration}', '-i', seg.filename]
         filter += f'concat=n={len(self._segments)}:v={int(video)}:a={int(audio)}'
+        if extra_filter is not None:
+            filter += f',{extra_filter}'
         if video:
             filter += '[outv]'
         if audio:
@@ -736,25 +726,14 @@ class IngestTimeSlice:
         return cmd
 
 
-tooldec = ToolDecorator()
-
-
 def main():
-    tool = IngestTool(sys.argv)
+    tool = IngestTool(args=sys.argv, action='list')
     tool()
 
 
-class IngestTool:
-    def __init__(self, args):
-        p = arghlp.ArgumentParser(ingest_tool=self, actions=tooldec.getActionNames(), default_action='list')
-        self._ns = p.parse_args(args)
-        self._argparser = p
+tooldec = ToolDecorator()
 
-    def __call__(self):
-        ns = self._ns
-        f = tooldec.getActionCallable(ns.action)
-        f(self)
-
+class IngestTool(tooldec.BaseTool):
     @tooldec.action('rm','remove')
     def remove(self):
         ns = self._ns
@@ -763,12 +742,15 @@ class IngestTool:
             tl = IngestTimeLine.load(name)
             tl.remove()
 
-    def getName(self, idx):
+    def getName(self, idx, *, use_argparse_error=True):
         ns = self._ns
         try:
             name = ns.largs[idx]
         except IndexError:
-            self.error('please specify a valid timeline name')
+            if use_argparse_error:
+                self.error('please specify a valid timeline name')
+            else:
+                raise
         return name
 
     def error(self, msg):
@@ -799,12 +781,12 @@ class IngestTool:
         tl.advance()
         tl.save()
 
-    @tooldec.action('reset')
-    def reset(self):
+    @tooldec.action('rtr', 'retreat')
+    def retreat(self):
         name = self.getName(0)
         self.ensureName(name, 'existing')
         tl = IngestTimeLine.load(name)
-        tl.reset()
+        tl.retreat()
         tl.save()
 
     @tooldec.action('cp','copy')
@@ -834,10 +816,21 @@ class IngestTool:
         table.add_column("BEGIN")
         table.add_column("END")
         table.add_column("DURATION")
+        table.add_column("EFFECTIVE_DURATION")
+        table.add_column("NUM_SEGMENTS")
         table.add_column("NUM_DISCONTINUITIES")
         for name, tl in IngestTimeLine.loadAllInstances().items():
             duration = str(timedelta(seconds=int(tl.duration.total_seconds())))
-            table.add_row(name, tl.begin.strftime(SEGMENT_DATETIME_FORMAT), tl.end.strftime(SEGMENT_DATETIME_FORMAT), duration, f'{tl.getNumberOfDiscontinuities()}')
+            effective_duration = str(timedelta(seconds=int(tl.effective_duration.total_seconds())))
+            table.add_row(
+                name,
+                tl.begin.strftime(SEGMENT_DATETIME_FORMAT),
+                tl.end.strftime(SEGMENT_DATETIME_FORMAT),
+                duration,
+                effective_duration,
+                str(len(tl.segments)),
+                f'{tl.getNumberOfDiscontinuities()}'
+            )
         rich_print(table)
 
     @tooldec.action('sl','slices')
@@ -860,15 +853,16 @@ class IngestTool:
         print()
         rich_print(table)
 
-    @tooldec.action('ns')
-    def ns(self):
-        ns = self._ns
-        rich_print(ns)
-
     @tooldec.action('pipe')
     def pipe(self):
         ns = self._ns
-        tl = IngestTimeLine(begin=ns.begin, duration=ns.duration)
+        try:
+            name = self.getName(0, use_argparse_error=False)
+        except IndexError:
+            tl = IngestTimeLine.load('.all')
+        else:
+            self.ensureName(name, 'existing')
+            tl = IngestTimeLine.load(name)
         slice = list(tl.slices())[ns.slice_index]
         concat = slice.generateConcatCommand(only=ns.only, shell=False)
         cmd = ['ffmpeg'] + concat

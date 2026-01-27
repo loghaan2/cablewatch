@@ -17,7 +17,6 @@ dependencies = [
     "requests (>=2.32.5,<3.0.0)",
     "bs4 (>=0.0.2,<0.0.3)",
     "myst-parser (>=4.0.1,<5.0.0)",
-    "tabulate (>=0.9.0,<0.10.0)",
     "rich (>=14.2.0,<15.0.0)",
     "pytest (>=9.0.2,<10.0.0)",
     "pytest-sugar (>=1.1.1,<2.0.0)",
@@ -27,6 +26,8 @@ dependencies = [
     "google-cloud-storage (>=3.7.0,<4.0.0)",
     "google-cloud-speech (>=2.35.0,<3.0.0)",
     "duckdb (>=1.4.3,<2.0.0)",
+    "pytesseract (>=0.3.13,<0.5.0)",
+    "strip-ansi (>=0.1.1,<0.2.0)",
 ]
 
 
@@ -43,3 +44,4 @@ cablewatch-mrproper = "cablewatch.scripts.mister_proper:main"
 cablewatch-speech = "cablewatch.speech:main"
 cablewatch-adduser = "cablewatch.user:main"
 cablewatch-stash = "cablewatch.stash:main"
+cablewatch-banners = "cablewatch.banners:main"

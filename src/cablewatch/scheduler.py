@@ -2,21 +2,37 @@ from datetime import datetime, time
 from loguru import logger
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
-from cablewatch import config, speech
+from cablewatch import config, speech, banners
 from cablewatch.decorators import log_exception
 
 
 class SchedulerService:
-    SPEECH_LAUNCH_OR_FETCH_SECONDS = speech.SpeechTool.TIMELINE_DURATION * 4
-    DO_RECORD_TIME = time(hour=6, minute=25)
-    DO_HALT_TIME = time(hour=0, minute=5)
+    WAKUP_INTERVAL = 60
+    INGEST_DORECORD_TIME = time(hour=6, minute=25)
+    INGEST_DOHALT_TIME = time(hour=0, minute=5)
+    TIMELINE_DURATION = 900
 
-    def __init__(self, *, ingest_service, record_planification=True, speech_planification=True):
+    def __init__(self, *,
+            ingest_service,
+            ingest_planification=True,
+            speech_init=True,
+            speech_planification=True,
+            banners_init=True,
+            banners_planification=True,
+            timeline_duration=None,
+        ):
         self._ingest_service = ingest_service
-        self._sched = None
-        self._launch_or_fetch = 'launch'
-        self._record_planification = record_planification
+        self._ingest_planification = ingest_planification
+        self._speech_init = speech_init
         self._speech_planification = speech_planification
+        self._banners_init = banners_init
+        self._banners_planification = banners_planification
+        if timeline_duration is None:
+            self._timeline_duration = self.TIMELINE_DURATION
+        else:
+            self._timeline_duration = timeline_duration.total_seconds()
+        logger.info(f"timeline duration is {self._timeline_duration}s")
+        self._sched = None
         ingest_service.registerScheduler(self)
 
     async def start(self):
@@ -24,26 +40,36 @@ class SchedulerService:
         conf = config.Config()
         executors = {
             'default': ThreadPoolExecutor(max_workers=1),
-            'speech-upload': ThreadPoolExecutor(max_workers=1),
-            'speech-launch-or-fetch': ThreadPoolExecutor(max_workers=1),
+            'speech': ThreadPoolExecutor(max_workers=1),
+            'banners': ThreadPoolExecutor(max_workers=1),
         }
         sched = BackgroundScheduler(timezone=conf.TIMEZONE, executors=executors)
         self._sched = sched
-        logger.warning('ingest record/halt daily planification jobs:')
-        if self._record_planification:
-            sched.add_job(self.ingest_dorecord, trigger="cron", hour=self.DO_RECORD_TIME.hour, minute=self.DO_RECORD_TIME.minute)
-            logger.warning(f'  - record at {self.DO_RECORD_TIME}')
-            sched.add_job(self.ingest_dohalt, trigger="cron", hour=self.DO_HALT_TIME.hour, minute=self.DO_HALT_TIME.minute)
-            logger.warning(f'  - halt at {self.DO_HALT_TIME}')
+        # ingest on first segment
+        sched.add_job(self.ingest_onfirstseg, trigger="interval", days=1000, id="ingest-onfirstseg") # triggered from ingest service
+        # ingest planification job
+        if self._ingest_planification:
+            logger.warning('ingest record/halt daily planification jobs:')
+            sched.add_job(self.ingest_dorecord, trigger="cron", hour=self.INGEST_DORECORD_TIME.hour, minute=self.INGEST_DORECORD_TIME.minute)
+            logger.warning(f'  - record at {self.INGEST_DORECORD_TIME}')
+            sched.add_job(self.ingest_dohalt, trigger="cron", hour=self.INGEST_DOHALT_TIME.hour, minute=self.INGEST_DOHALT_TIME.minute)
+            logger.warning(f'  - halt at {self.INGEST_DOHALT_TIME}')
         else:
-            logger.warning('  - (none)')
-        sched.add_job(self.ingest_onrecord, trigger="interval", days=1000, id="ingest-onrecord") # triggered from ingest service
-        sched.add_job(self.ingest_onhalt, trigger="interval", days=1000, id="ingest-onhalt") # triggered from ingest service
+            logger.warning('no ingest planification')
+        # speech planification job
         if self._speech_planification:
-            sched.add_job(self.speech_upload, trigger="interval", seconds=speech.SpeechTool.TIMELINE_DURATION, executor='speech-upload')
-            sched.add_job(self.speech_launch_or_fetch, trigger="interval", seconds=self.SPEECH_LAUNCH_OR_FETCH_SECONDS, executor='speech-launch-or-fetch')
+            sched.add_job(self.speech_upload, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech")
+            sched.add_job(self.speech_launch, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech")
+            sched.add_job(self.speech_fetch, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech")
+            logger.warning('register speech planification jobs')
         else:
             logger.warning('no speech planification')
+        # banners planification job
+        if self._banners_planification:
+            sched.add_job(self.banners_extract, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="banners")
+            logger.warning('register banners planification jobs')
+        else:
+            logger.warning('no banners planification')
         sched.start()
         logger.info("scheduler service started")
 
@@ -74,32 +100,40 @@ class SchedulerService:
         logger.warning("/ingest_dohalt()")
 
     @log_exception
-    def ingest_onrecord(self):
-        logger.warning("ingest_onrecord()")
-        tool = speech.SpeechTool()
-        tool.initTimeline()
-        logger.warning("/ingest_onrecord()")
-
-    @log_exception
-    def ingest_onhalt(self):
-        logger.warning("ingest_onhalt()")
-        logger.warning("/ingest_onhalt()")
+    def ingest_onfirstseg(self):
+        logger.warning("ingest_onfirstseg()")
+        if self._speech_init:
+            tool = speech.SpeechTool(action='init', duration=f'{self._timeline_duration}s')
+            tool()
+        if self._banners_init:
+            tool = banners.BannersTool(action='init', duration=f'{self._timeline_duration}s')
+            tool()
+        logger.warning("/ingest_onfirstseg()")
 
     @log_exception
     def speech_upload(self):
         logger.warning("speech_upload()")
-        tool = speech.SpeechTool()
-        tool.convertAndUpload()
+        tool = speech.SpeechTool(action='upload')
+        tool()
         logger.warning("/speech_upload()")
 
     @log_exception
-    def speech_launch_or_fetch(self):
-        logger.warning("speech_launch_or_fetch()")
-        tool = speech.SpeechTool()
-        if self._launch_or_fetch == 'launch':
-            tool.launchTranscriptions()
-            self._launch_or_fetch = 'fetch'
-        else:
-            tool.fetchResults()
-            self._launch_or_fetch = 'launch'
-        logger.warning("/speech_launch_or_fetch()")
+    def speech_launch(self):
+        logger.warning("speech_launch()")
+        tool = speech.SpeechTool(action='launch')
+        tool()
+        logger.warning("/speech_launch()")
+
+    @log_exception
+    def speech_fetch(self):
+        logger.warning("speech_fetch()")
+        tool = speech.SpeechTool(action='fetch')
+        tool()
+        logger.warning("/speech_fetch()")
+
+    @log_exception
+    def banners_extract(self):
+        logger.warning("banners_extract()")
+        tool = banners.BannersTool(action='extract')
+        tool()
+        logger.warning("/banners_extract()")

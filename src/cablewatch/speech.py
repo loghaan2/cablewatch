@@ -8,7 +8,6 @@ import math
 from datetime import datetime, timedelta
 import wave
 import pathlib
-import argparse
 import json
 import collections
 import difflib
@@ -27,12 +26,12 @@ from google.cloud.speech_v2.types import (
 from rich.table import Table
 from rich import print as rich_print
 from rich.console import Console
-from cablewatch import config, ingest, arghlp
+from cablewatch import config, ingest
 from cablewatch.decorators import ToolDecorator
 
 
 def main():
-    tool = SpeechTool(sys.argv)
+    tool = SpeechTool(args=sys.argv, action='gold')
     tool()
 
 
@@ -48,20 +47,18 @@ def readline(fd):
             line += ch
 
 
-tooldec = ToolDecorator()
-
-
 DATETIME_FORMAT = "%Y%m%d_%Hh%Mm%S"
 
 
-class SpeechTool:
+tooldec = ToolDecorator()
+
+class SpeechTool(tooldec.BaseTool):
     LOCATION = 'eu'
     SV2_LANGUAGE = 'fr-FR'
     SV2_MODEL = 'chirp_3'
     SV2_MIN_SPEAKER = 1
     SV2_MAX_SPEAKER = 8
-    TIMELINE_NAME = 'speech-extractor'
-    TIMELINE_DURATION = 900
+    TIMELINE_NAME = 'speech'
     OVERLAP_DURATION = 10
     WAV_SAMPLE_RATE = 16000
     WAV_SAMPLE_WIDTH = 2
@@ -70,15 +67,12 @@ class SpeechTool:
     WAV_CHUNK_SIZE = 256
     WAV_BASENAME_FORMAT = '{datetime}_{duration_ms}ms.wav'
     WAV_BASENAME_PATTERN = r'^(.+)_(.+)ms(\.wav)?$'
+    WAV_MIN_NUM_FILES_TO_LAUNCH = 5
     KEEP_BUCKET = False
     LOCAL_COPY = False
 
-    def __init__(self, args=None, action=None, local_copy=LOCAL_COPY, keep_bucket=KEEP_BUCKET):
-        if args is None:
-            self._ns = argparse.Namespace(action=action, local_copy=local_copy, keep_bucket=keep_bucket)
-        else:
-            p = arghlp.ArgumentParser(speech_tool=self, actions=tooldec.getActionNames(), default_action='list-bucket')
-            self._ns = p.parse_args(args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,**kwargs)
         conf = config.Config()
         client_options = {"api_endpoint": f"{self.LOCATION}-speech.googleapis.com"}
         self._sv2_client = speech_v2.SpeechClient(client_options=client_options)
@@ -97,11 +91,6 @@ class SpeechTool:
         )
         self._storage_client = storage.Client.from_service_account_json(conf.GCP_SERVICE_ACCOUNT)
 
-    def __call__(self):
-        ns = self._ns
-        f = tooldec.getActionCallable(ns.action)
-        f(self)
-
     def secondsToNumSamples(self, seconds):
         if seconds == math.inf:
             return math.inf
@@ -112,36 +101,41 @@ class SpeechTool:
             return math.inf
         return nsamples / (self.WAV_SAMPLE_RATE * self.WAV_SAMPLE_WIDTH)
 
-    @tooldec.action('init-timeline', 'init')
-    def initTimeline(self):
-        begin = datetime.now() - timedelta(seconds=ingest.DEFAULT_DRIFT)
-        tl = ingest.IngestTimeLine(self.TIMELINE_NAME, begin=begin, duration=timedelta(seconds=self.TIMELINE_DURATION))
+    @tooldec.action('init', begin='fseg.begin')
+    def init(self):
+        ns = self._ns
+        tl = ingest.IngestTimeLine(self.TIMELINE_NAME, begin=ns.begin, duration=ns.duration)
         tl.save()
-        logger.info(f'timeline created: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')
+        logger.info(f'timeline created: {tl.name!r} begin={tl.begin.strftime(DATETIME_FORMAT)!r} duration={tl.duration.total_seconds()!r}')
 
-    @tooldec.action('upload', 'convert-and-upload')
+    @tooldec.action('upload')
     def convertAndUpload(self):
         try:
             tl = ingest.IngestTimeLine.load(self.TIMELINE_NAME)
         except KeyError:
-            logger.warning(f'cannot open timeline {self.TIMELINE_NAME!r}')
+            logger.warning(f'cannot open timeline {self.TIMELINE_NAME!r} => nothing to do')
             return
-        logger.info(f'timeline before: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')
+        if not tl.isReady():
+            logger.warning(f"timeline {self.TIMELINE_NAME!r} currently not ready => nothing to do")
+            return
+        ns = self._ns
+        logger.info(f'timeline before: {tl.name!r} begin={tl.begin.strftime(DATETIME_FORMAT)!r} duration={tl.duration.total_seconds()!r}')
         slices = tl.slices()
         if len(slices) == 0:
             logger.warning("currently no slices, nothing to do")
             return
-        slices_duration = timedelta(seconds=0)
-        for slice in slices:
-            basename, wav_frames = self.makeWavFromSlice(slice)
-            self.uploadWavFile(basename, wav_frames)
-            slices_duration += slice.duration
-        # move timeline
-        logger.info(f"slices_duration={slices_duration.total_seconds():.2f}")
-        begin = tl.begin + timedelta(seconds=slices_duration.total_seconds()-self.OVERLAP_DURATION)
-        tl.init(tl.name, begin=begin, duration=tl.duration)
-        tl.save()
-        logger.info(f'timeline after: {tl.name!r} begin={tl.begin.isoformat()!r} end={tl.end.isoformat()!r} duration={tl.duration.total_seconds()!r}')
+        try:
+            for slice in slices:
+                basename, wav_frames = self.makeWavFromSlice(slice)
+                self.uploadWavFile(basename, wav_frames)
+        except:
+            raise
+        finally:
+            if not ns.stay:
+                begin = tl.begin + timedelta(seconds=tl.effective_duration.total_seconds()-self.OVERLAP_DURATION)
+                tl.init(tl.name, begin=begin, duration=tl.duration)
+                tl.save()
+                logger.info(f'timeline after: {tl.name!r} begin={tl.begin.strftime(DATETIME_FORMAT)!r} duration={tl.duration.total_seconds()!r}')
 
     def makeWavFromSlice(self, slice):
         inputs_and_filter = slice.generateConcatCommand(only='audio')
@@ -173,7 +167,7 @@ class SpeechTool:
                             poller.unregister(fd)
                             active_fds.remove(fd)
                             break
-                        logger.bind(name='[ffmpeg]').info(ln)
+                        logger.bind(name='[ffmpeg]').debug(ln)
                         if ln.endswith('\n'):
                             ln = ln[:-1]
                     else: # ffmpeg wav output
@@ -187,7 +181,7 @@ class SpeechTool:
                                 active_fds.remove(fd)
                                 break
                             wav_frames += wav_chunk
-        slice_duration = slice.duration.total_seconds()
+        slice_duration = slice.effective_duration.total_seconds()
         wav_duration = self.numSamplesToSeconds(len(wav_frames))
         duration_ms = int(wav_duration * 1000)
         basename = self.WAV_BASENAME_FORMAT.format(datetime=slice.begin.strftime(DATETIME_FORMAT), duration_ms=duration_ms)
@@ -216,7 +210,7 @@ class SpeechTool:
         blob.upload_from_file(buf, content_type="audio/wav")
         logger.info(f"{basename!r} uploaded")
 
-    @tooldec.action('launch-transcriptions', 'launch')
+    @tooldec.action('launch')
     def launchTranscriptions(self):
         conf = config.Config()
         client = self._storage_client
@@ -234,8 +228,8 @@ class SpeechTool:
             if pth.stem in launched:
                 continue
             files.append(BatchRecognizeFileMetadata(uri=f"gs://{conf.GCP_BUCKET_NAME}/speech-extractor/uploaded/{pth.name}"))
-        if len(files) == 0:
-            logger.warning("no available files for transcription")
+        if len(files) < self.WAV_MIN_NUM_FILES_TO_LAUNCH:
+            logger.warning(f"no enough wav files ({self.WAV_MIN_NUM_FILES_TO_LAUNCH} needed) to start launching")
             return
         output_config = RecognitionOutputConfig(
             gcs_output_config=GcsOutputConfig(
@@ -260,7 +254,7 @@ class SpeechTool:
             blob.upload_from_file(buf, content_type="text/plain")
             logger.info(f"  - {f.uri}")
 
-    @tooldec.action('fetch-results', 'fetch')
+    @tooldec.action('fetch')
     def fetchResults(self):
         ns = self._ns
         conf = config.Config()
@@ -328,32 +322,16 @@ class SpeechTool:
             logger.warning(f'delete {blob.name}')
             blob.delete()
 
-    @tooldec.action('print-namespace', 'ns')
-    def printNamespace(self):
-        ns = self._ns
-        rich_print(ns)
-
-    @tooldec.action('test-logger', 'log')
-    def testLogger(self):
-        for lvl in 'debug', 'info', 'warning', 'error', 'critical':
-            logger.log(lvl.upper(), f'{lvl} !')
-
     @tooldec.action('bronze', 'silver', 'gold')
     def view(self):
         console = Console(force_terminal=True)
         ns = self._ns
-        v = SpeechView(begin=ns.begin, end=ns.end)
-        iterator = getattr(v, ns.action)
         if ns.output_format=='text':
             printer = SpeechTextPrinter(console)
         else:
             printer = console
-        for d in iterator():
+        for d in SpeechQuery(begin=ns.begin, end=ns.end, layer=ns.action):
             if 'timestamp' in d:
-                if d['timestamp'] < ns.begin:
-                    continue
-                if d['timestamp'] > ns.end:
-                    continue
                 d['timestamp'] = d['timestamp'].strftime(DATETIME_FORMAT)
             if 'pos' in d:
                 d['pos'] = f"{d['pos']:04d}"
@@ -376,9 +354,6 @@ class SpeechTextPrinter:
         console = self._console
         speaker = d['speaker']
         kwargs = dict(end="", highlight=False)
-        if self._count > 30:
-            console.print(f'[{self.STAMP_COLOR}]<{d["timestamp"][9:]}>[/] ', **kwargs)
-            self._count = 0
         try:
             speaker_color = self._speaker_colors[speaker]
         except KeyError:
@@ -387,6 +362,10 @@ class SpeechTextPrinter:
             self._next_speaker_color_index = (self._next_speaker_color_index + 1) % len(self.SPEAKER_COLORS)
         if speaker != self._last_speaker:
             console.print(f'[{self.STAMP_COLOR}]<speaker:{speaker}>[/] ', **kwargs)
+            self._count = 31
+        if self._count > 30:
+            console.print(f'[{self.STAMP_COLOR}]<{d["timestamp"][9:]}>[/] ', **kwargs)
+            self._count = 0
         console.print(f'[{speaker_color}]{d["word"]}[/{speaker_color}] ', **kwargs)
         self._count += 1
         self._last_speaker = speaker
@@ -412,33 +391,43 @@ def find_longest_common_sublist_fuzzy(a, b, threshold=0.8):
     return start_a, start_b, max_len
 
 
-class SpeechView:
+class SpeechQuery:
     WINDOW_SIZE = 100
     MIN_OVERLAP_SIZE = int(WINDOW_SIZE * 0.1)
 
-    def __init__(self, *, begin, end, logger=None):
+    def __init__(self, *, begin, end, layer="gold", logger=None):
         conf = config.Config()
         self._begin = begin
         self._end = end
         self._logger = logger
-        all_results_filenames = glob.glob(f"{conf.SPEECH_DATADIR}/*.json")
-        all_results_filenames.sort()
-        results = {}
-        for fn in all_results_filenames:
-            res = SpeechResult.fromFileName(fn)
-            results[res.begin] = res
-        for res in list(results.values()):
-            if res.end < begin:
-                del results[res.begin]
-            if res.begin > end:
-                del results[res.begin]
-        self._results = results
+        self._layer = layer
+        all_sequences_filenames = glob.glob(f"{conf.SPEECH_DATADIR}/*.json")
+        all_sequences_filenames.sort()
+        sequences = {}
+        for fn in all_sequences_filenames:
+            seq = SpeechSequence.fromFileName(fn)
+            sequences[seq.begin] = seq
+        self._sequences = sequences
         self._basenames = {}
 
+    def inTimeRange(self, d):
+        if self._begin is None or self._end is None:
+            return True
+        if 'timestamp' not in d:
+            return True
+        if d['timestamp'] >= self._begin and d['timestamp'] <= self._end:
+            return True
+        else:
+            return False
+
+    def __iter__(self):
+        f = getattr(self, self._layer)
+        yield from f()
+
     def _raw(self):
-        for res in self._results.values():
-            for x in res.data['results'][0]['alternatives'][0]['words']:
-                yield res,x
+        for seq in self._sequences.values():
+            for x in seq.data['results'][0]['alternatives'][0]['words']:
+                yield seq,x
 
     def bronze(self):
         previous_speaker = None
@@ -447,7 +436,7 @@ class SpeechView:
         next_fileid = 0
         pos = 0
         self._basenames.clear()
-        for res, x in self._raw():
+        for seq, x in self._raw():
             if ('startOffset' in x) and ('endOffset' in x):
                 offset = (float(x['startOffset'][:-1]) + float(x['endOffset'][:-1])) / 2
             elif 'endOffset' in x:
@@ -456,27 +445,28 @@ class SpeechView:
                 offset = float(x['startOffset'][:-1])
             else:
                 offset = previous_offset
-            if offset >= res.duration.total_seconds():
+            if offset >= seq.duration.total_seconds():
                 offset = previous_offset
             if 'speakerLabel' not in x:
                 speaker = previous_speaker
             else:
                 speaker = int(x['speakerLabel'])
             try:
-                fileid = fileids[res.basename]
+                fileid = fileids[seq.basename]
             except KeyError:
                 fileid = next_fileid
                 next_fileid += 1
-                fileids[res.basename] = fileid
-                self._basenames[fileid] = res.basename
+                fileids[seq.basename] = fileid
+                self._basenames[fileid] = seq.basename
                 pos = 0
             d = {}
             d['fileid'] = fileid
-            d['timestamp'] = res.begin + timedelta(seconds=offset)
+            d['timestamp'] = seq.begin + timedelta(seconds=offset)
             d['speaker'] = speaker
             d['pos'] = pos
             d['word'] = x['word']
-            yield d
+            if self.inTimeRange(d):
+                yield d
             previous_offset = offset
             previous_speaker = speaker
             pos += 1
@@ -545,18 +535,19 @@ class SpeechView:
             del d2['pos']
             yield d2
 
-class SpeechResult:
+
+class SpeechSequence:
     JSON_BASENAME_PATTERN = SpeechTool.WAV_BASENAME_PATTERN.replace(r'\.wav',r'\.json')
 
     @staticmethod
     def fromFileName(filename):
         basename = os.path.basename(filename)
-        m = re.match(SpeechResult.JSON_BASENAME_PATTERN, basename)
+        m = re.match(SpeechSequence.JSON_BASENAME_PATTERN, basename)
         if not m:
             raise AssertionError(f'cannot parse result filename: {basename!r}')
         begin = datetime.strptime(m.group(1), DATETIME_FORMAT)
         duration = timedelta(seconds=float(m.group(2))/1000)
-        return SpeechResult(filename=filename, basename=basename, begin=begin, duration=duration)
+        return SpeechSequence(filename=filename, basename=basename, begin=begin, duration=duration)
 
     def __init__(self, *,filename, basename, begin, duration):
         self.filename = filename

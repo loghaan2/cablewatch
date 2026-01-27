@@ -24,6 +24,8 @@ RUN apt-get update \
         emacs \
         tree \
         unzip \
+        tesseract-ocr \
+        tesseract-ocr-fra \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

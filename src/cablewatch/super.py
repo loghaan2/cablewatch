@@ -11,7 +11,6 @@ def make_synchrone(async_func):
     return inner
 
 
-
 class Aborter:
     def __init__(self):
         ev = asyncio.Event()
@@ -42,7 +41,7 @@ class Aborter:
 
 @make_synchrone
 async def main():
-    p = arghlp.ArgumentParser(super_service=True)
+    p = arghlp.ArgumentParser(classname="SuperService")
     logger.info(f'args: {sys.argv[1:]}')
     ns = p.parse_args(sys.argv)
     logger.info(f'ns: {ns}')
@@ -51,12 +50,16 @@ async def main():
     ingest_service = ingest.IngestService(
         http_service=http_service,
         aborter=aborter,
-        recording_requested=ns.recording_requested
+        recording_requested=not ns.ingest_halt,
     )
     scheduler_service = scheduler.SchedulerService(
         ingest_service=ingest_service,
-        record_planification=ns.record_planification,
+        ingest_planification=ns.ingest_planification,
+        speech_init=ns.speech_init,
         speech_planification=ns.speech_planification,
+        banners_init=ns.banners_init,
+        banners_planification=ns.banners_planification,
+        timeline_duration=ns.duration,
     )
     papers_service = papers.PapersService(
         http_service=http_service,

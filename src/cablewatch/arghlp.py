@@ -1,70 +1,134 @@
-from cablewatch import loghlp
-from datetime import datetime, time, timedelta
 import re
 import argparse
+from datetime import datetime, timedelta
+from loguru import logger
+from rich import print as rich_print
+from cablewatch import loghlp
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *, actions=None, default_action=None, ingest_tool=None, speech_tool=None, super_service=None, stash_tool=None):
-        if actions is None:
+    def __init__(self, *,
+            tooldec=None,
+            tool=None,
+            classname=None,
+        ):
+        if tooldec is None:
             usage = '%(prog)s <options>'
         else:
-            usage=f'%(prog)s <{"|".join(actions)}> <options>'
+            usage=f'%(prog)s <{"|".join(tooldec.getActionNames())}> <options>'
         super().__init__(usage=usage)
-        self.__actions = actions
-        self.__default_action = default_action
-        if ingest_tool:
-            group = self.add_argument_group("Timeline tool options")
+        self._tooldec = tooldec
+        self._tool = tool
+        if tool is not None:
+            classname_ = tool.classname
+        else:
+            classname_ = classname
+        if classname_ == 'IngestTool':
+            group = self.add_argument_group("Ingest tool options")
             group.add_argument('-s','--slice-index', dest='slice_index', default=0, type=int, help="set slice index")
             group.add_argument('--audio', dest='only', default=None, action='store_const', const='audio', help="only audio")
             group.add_argument('--video', dest='only', default=None, action='store_const', const='video', help="only video")
-        if speech_tool:
-            group = self.add_argument_group("Speech extractor tool options")
-            group.add_argument('-k', '--keep-bucket', dest='keep_bucket', default=speech_tool.KEEP_BUCKET, action='store_true', help="keep files in buckets")
-            group.add_argument('-c', '--local-copy', dest='local_copy', default=speech_tool.LOCAL_COPY, action='store_true',  help="make a local copy .wav and .json files")
+        if classname_ == 'SpeechTool':
+            group = self.add_argument_group("Speech tool options")
+            group.add_argument('-k', '--keep-bucket', dest='keep_bucket', default=tool.KEEP_BUCKET, action='store_true', help="keep files in buckets")
             group.add_argument('-f', '--output-format', dest='output_format', default=None, help="output format")
-        if speech_tool or ingest_tool:
-            group = self.add_argument_group("Time range options")
-            group.add_argument('-B', '--begin', dest='begin', default=None, help="begin")
-            group.add_argument('-E', '--end', dest='end', default=None, help="end")
-            group.add_argument('-D', '--day', dest='day', default=None, help="day")
-            group.add_argument('-d','--duration', dest='duration', default=None, help="set timeline duration")
-        if super_service:
+            group.add_argument('-l', '--local-copy', dest='local_copy', default=tool.LOCAL_COPY, action='store_true',  help="make a local copy of .wav and .json files")
+        if classname_ == 'BannersTool':
+            group = self.add_argument_group("Banners tool options")
+            group.add_argument('-l', '--local-copy', dest='local_copy', default=tool.LOCAL_COPY, action='store_true',  help="make a local copy of .png files")
+        if classname_ == 'SpeechTool' or classname_ == 'BannersTool':
+            group = self.add_argument_group("Banners/Speech tool options")
+            group.add_argument('-S', '--stay', dest='stay', default=False, action='store_true')
+        if classname_ == 'PapersTool':
+            group = self.add_argument_group("Papers tools options")
+            group.add_argument('-y', dest='yesterday', default=False, action='store_true', help="generate papers from data collected yesterday")
+        if classname_ == 'IngestTool' or classname_ == 'SpeechTool' or classname_ == 'BannersTool':
+            group = self.add_argument_group("Time options")
+            group.add_argument('-Tb', dest='begin',    default=None, help="begin")
+            group.add_argument('-Te', dest='end',      default=None, help="end")
+            group.add_argument('-Td', dest='duration', default=None, help="duration")
+        if classname_ == 'SuperService':
             group = self.add_argument_group("Super service options")
-            group.add_argument('-n', '--no-record-planification', dest='record_planification', default=True, action='store_false', help="no record planification")
-            group.add_argument('-N', '--no-speech-planification', dest='speech_planification', default=True, action='store_false', help="no speech planification")
-            group.add_argument('-H', '--halt', dest='recording_requested', default=True, action='store_false', help="start ingest in halt mode")
-            log_level = 'INFO'
+            group.add_argument('-Ih',  dest='ingest_halt',           default=False, action='store_true',  help="start ingest in halt mode")
+            group.add_argument('-Inp', dest='ingest_planification',  default=True,  action='store_false', help="no ingest planification")
+            group.add_argument('-Sni', dest='speech_init',           default=True,  action='store_false', help="no speech init")
+            group.add_argument('-Snp', dest='speech_planification',  default=True,  action='store_false', help="no speech planification")
+            group.add_argument('-Bni', dest='banners_init',          default=True,  action='store_false', help="no banners init")
+            group.add_argument('-Bnp', dest='banners_planification', default=True,  action='store_false', help="no banners planification")
+            group.add_argument('-Td',  dest='duration',              default=None,  help="timeline duration")
             log_fileoutput = True
         else:
-            log_level = 'CRITICAL'
             log_fileoutput = False
         group = self.add_argument_group("Logging options")
-        group.add_argument('-l', dest='log_level', default=log_level, help="set log level")
+        for log_level in 'debug', 'info', 'warning', 'error', 'critical':
+            group.add_argument(f'-L{log_level}', dest='log_level', default='INFO', action='store_const', const=log_level, help=f"set log level {log_level}")
         if log_fileoutput:
             action='store_false'
         else:
             action='store_true'
-        group.add_argument('-L', dest='log_fileoutput', default=log_fileoutput, action=action, help="toggle log file output")
+        group.add_argument('-Lo', dest='log_fileoutput', default=log_fileoutput, action=action, help="toggle log file output")
+        group.add_argument('-Lf', dest='log_filterpattern', default=None, help="set log filter pattern")
+        group = self.add_argument_group("Debug options")
+        group.add_argument('-Dns',  dest='trace_ns', default=False, action='store_true', help="log filter")
+        group.add_argument('-Dlogs',  dest='check_logs', default=False, action='store_true', help="check logs")
 
-    def parseDate(self, s):
-        for format in "%Y%m%d",:
+    def parseDateTimeWithDelta(self, s):
+        idx_plus = s.find('+')
+        idx_minus = s.find('-')
+        if (idx_plus < 0) and (idx_minus < 0):
+            return self.parseDateTime(s)
+        elif (idx_plus >= 0) and (idx_minus >= 0):
+            raise ValueError
+        if idx_plus >= 0:
+            idx = idx_plus
+        else:
+            idx = idx_minus
+        dt = self.parseDateTime(s[:idx])
+        delta = self.parseDelta(s[idx+1:])
+        if idx_plus >= 0:
+            return dt + delta
+        else:
+            return dt - delta
+
+    def parseDateTime(self, s):
+        from cablewatch import ingest
+        tl = ingest.IngestTimeLine.load('.all')
+        if s=='now':
+            return datetime.now()
+        elif s=='today':
+            return datetime.now().date()
+        elif s=='min':
+            return datetime.min
+        elif s=='max':
+            return datetime.max
+        elif s=='begin':
+            return tl.begin
+        elif s=='end':
+            return tl.end
+        elif s=='fseg.begin':
+            return tl.first_segment.begin
+        elif s=='fseg.end':
+            return tl.first_segment.end
+        elif s=='lseg.begin':
+            return tl.last_segment.begin
+        elif s=='lseg.end':
+            return tl.last_segment.end
+        for format in "%Y%m%d_%Hh%Mm%S", "%Y%m%d_%Hh%M", "%Y%m%d_%Hh", "%Hh%Mm%S", "%Hh%M", "%Hh":
             try:
-                return datetime.strptime(s, format).date()
+                dt = datetime.strptime(s, format)
+                if '%Y' not in format:
+                    dt = datetime.combine(datetime.now().date(), dt.time())
+                return dt
             except ValueError:
                 continue
         raise ValueError
 
-    def parseTime(self, s):
-        for format in "%Hh%Mm%S", "%Hh%M", "%Hh":
-            try:
-                return datetime.strptime(s, format).time()
-            except ValueError:
-                continue
-        raise ValueError
-
-    def parseTimeDelta(self, s):
-        for pattern in r"^(?P<seconds>\d+)s$",:
+    def parseDelta(self, s):
+        from cablewatch import ingest
+        tl = ingest.IngestTimeLine.load('.all')
+        if s=='duration':
+            return tl.duration
+        for pattern in r"^(?P<seconds>[0-9.]+)s$", r"^(?P<minutes>[0-9.]+)mn$", r"^(?P<hours>[0-9.]+)h$":
             m = re.match(pattern, s)
             if m:
                 d = {'seconds': 0, 'minutes': 0, 'hours': 0}
@@ -74,50 +138,61 @@ class ArgumentParser(argparse.ArgumentParser):
                 return timedelta(**d)
         raise ValueError
 
-    def parse_args(self, args):
-        prog = args[0]
-        ns,args = self.parse_known_args(args[1:])
-        ns.prog = prog
-        ns.action = None
+    def parse_args(self, args, *, action=None, **extra_options):
+        if args is None:
+            ns,args = self.parse_known_args([])
+        else:
+            ns,args = self.parse_known_args(args[1:])
+        ns.action = action
         ns.largs = []
         ns.rargs = []
         xargs = ns.largs
-        if self.__actions is not None:
+        error = None
+        tooldec = self._tooldec
+        if tooldec is not None:
             if len(args) > 0:
                 ns.action = args.pop(0)
-                if  ns.action not in self.__actions:
-                    self.error(f'invalid action {ns.action!r}')
-            if ns.action is None:
-                if self.__default_action is None:
-                    self.error('no action secified')
-                else:
-                    ns.action = self.__default_action
+            if ns.action not in tooldec.getActionNames():
+                error = f'invalid action {ns.action!r}'
         for a in args:
-            if a == '--':
+            if xargs == ns.largs and a.startswith('-'):
+                error = f'invalid option {a!r}'
+            elif a == '--':
                 xargs = ns.rargs
             else:
                 xargs.append(a)
-        if 'day' in ns:
-            if ns.day is not None:
-                ns.day = datetime.strptime(ns.day, "%Y%m%d").date()
-            else:
-                ns.day = datetime.now().date()
-        if 'begin' in ns:
-            if ns.begin is not None:
-                ns.begin = self.parseTime(ns.begin)
-            else:
-                ns.begin = time.min
-            ns.begin = datetime.combine(ns.day, ns.begin)
-        if 'end' in ns:
-            if ns.end is not None:
-                ns.end = self.parseTime(ns.end)
-            else:
-                ns.end = time.max
-            ns.end = datetime.combine(ns.day, ns.end)
-        if 'duration' in ns:
-            if ns.duration is not None:
-                ns.end = ns.begin + self.parseTimeDelta(ns.duration)
-        if 'begin' in ns and ('end' in ns):
+        def has_opt(k):
+            if k in ns:
+                if getattr(ns, k) is not None:
+                    return True
+            return False
+        extra_options_ = {}
+        if (tooldec is not None) and (ns.action is not None):
+            extra_options_.update(tooldec.getExtraOptions(ns.action))
+        extra_options_.update(extra_options)
+        for k,v in extra_options_.items():
+            if not has_opt(k):
+                setattr(ns,k,v)
+        if has_opt('begin') and has_opt('end') and has_opt('duration'):
+            error = 'cannot mix begin, end and duration options'
+        if has_opt('begin'):
+            ns.begin = self.parseDateTimeWithDelta(ns.begin)
+        if has_opt('end'):
+            ns.end = self.parseDateTimeWithDelta(ns.end)
+        if has_opt('duration'):
+            ns.duration = self.parseDelta(ns.duration)
+        if has_opt('begin') and has_opt('duration'):
+            ns.end = ns.begin + ns.duration
+        if has_opt('end') and has_opt('duration'):
+            ns.begin = ns.end - ns.duration
+        if has_opt('begin') and has_opt('end'):
             ns.duration = ns.end - ns.begin
-        loghlp.setup(level=ns.log_level.upper(), fileoutput=ns.log_fileoutput)
+        loghlp.setup(level=ns.log_level.upper(), fileoutput=ns.log_fileoutput, filterpattern=ns.log_filterpattern)
+        if ns.trace_ns:
+            rich_print(ns)
+        if ns.check_logs:
+            for lvl in 'debug', 'info', 'warning', 'error', 'critical':
+                logger.bind(name=f'[{lvl[::-1]}]').log(lvl.upper(), f'{lvl}')
+        if error is not None:
+            self.error(error)
         return ns
