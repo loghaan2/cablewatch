@@ -65,43 +65,41 @@ class User:
             self._error_msg = f'invalid password hash {self._password_hash!r}'
             return
 
-    def _hash(self, salt, password):
-        password_hash = hashlib.pbkdf2_hmac('sha512', password, salt, self.PBKDF2_ITERATIONS)
-        password_hash = binascii.hexlify(password_hash)
-        return password_hash
+    def verifyPassword(self, provided_password, *, log=True):
+        if self._error_msg:
+            if log:
+                logger.warning(f"cannot auth. because {self._error_msg}")
+            return False
+        stored_hashed_password = self._password_hash
+        salt = stored_hashed_password[:64]
+        stored_hashed_password = stored_hashed_password[64:]
+        provided_hashed_password = hashlib.pbkdf2_hmac('sha512', provided_password.encode('utf-8'), salt, self.PBKDF2_ITERATIONS)
+        provided_hashed_password = binascii.hexlify(provided_hashed_password)
+        if provided_hashed_password==stored_hashed_password:
+            if log:
+                logger.warning(f"user {self._name!r} authentificated")
+            return True
+        else:
+            if log:
+                logger.warning(f"invalid password for {self._name!r}")
+            return False
 
     def generatePasswordHash(self, password):
         salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
-        generated_password_hash = self._hash(salt, password.encode('utf-8'))
-        generated_password_hash = generated_password_hash.decode()
-        return generated_password_hash
+        hashed_password = hashlib.pbkdf2_hmac('sha512', password.encode('utf8'), salt, self.PBKDF2_ITERATIONS)
+        hashed_password = binascii.hexlify(hashed_password)
+        hashed_password = salt + hashed_password
+        return hashed_password.decode('utf-8')
 
     def generateTomlSection(self, password, roles):
         password_hash = self.generatePasswordHash(password)
         s = ''
         s += '[[users]]\n'
-        s += f'username = "{self._name}"\n'
+        s += f'name = "{self._name}"\n'
         s += f'password_hash = "{password_hash}"\n'
         s += f'roles = "{roles}"\n'
         s += '\n'
         return s
-
-    def verifyPassword(self, password, *, log=True):
-        if self._error_msg:
-            if log:
-                logger.warning(f"cannot auth. because {self._error_msg}")
-            return False
-        if self._password_hash is not None:
-            salt = self._password_hash[:64]
-            expected_password_hash = self._password_hash[64:]
-            provided_password_hash = self._hash(salt, password.encode('utf-8'))
-            if provided_password_hash == expected_password_hash:
-                if log:
-                    logger.warning(f"user {self._name!r} authentificated")
-                return True
-        if log:
-            logger.warning(f"invalid password for {self._name!r}")
-        return False
 
 
 def main():
