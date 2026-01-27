@@ -89,7 +89,10 @@ class SpeechTool(tooldec.BaseTool):
                 enable_word_time_offsets=True,
             )
         )
-        self._storage_client = storage.Client.from_service_account_json(conf.GCP_SERVICE_ACCOUNT)
+        if len(conf.GCP_SERVICE_ACCOUNT) == 0:
+            self._storage_client = storage.Client()
+        else:
+            self._storage_client = storage.Client.from_service_account_json(conf.GCP_SERVICE_ACCOUNT)
 
     def secondsToNumSamples(self, seconds):
         if seconds == math.inf:
