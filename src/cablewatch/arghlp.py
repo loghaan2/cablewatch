@@ -41,8 +41,7 @@ class ArgumentParser(argparse.ArgumentParser):
             group.add_argument('-S', '--stay', dest='stay', default=False, action='store_true')
         if classname_ == 'PapersTool':
             group = self.add_argument_group("Papers tools options")
-            group.add_argument('-y', dest='yesterday', default=False, action='store_true', help="generate papers from data collected yesterday")
-        if classname_ == 'IngestTool' or classname_ == 'SpeechTool' or classname_ == 'BannersTool':
+        if classname_ == 'IngestTool' or classname_ == 'SpeechTool' or classname_ == 'BannersTool' or classname_ == 'PapersTool':
             group = self.add_argument_group("Time options")
             group.add_argument('-Tb', dest='begin',    default=None, help="begin")
             group.add_argument('-Te', dest='end',      default=None, help="end")
@@ -95,12 +94,8 @@ class ArgumentParser(argparse.ArgumentParser):
         tl = ingest.IngestTimeLine.load('.all')
         if s=='now':
             return datetime.now()
-        elif s=='today':
-            return datetime.now().date()
-        elif s=='min':
-            return datetime.min
-        elif s=='max':
-            return datetime.max
+        elif s=='yesterday':
+            return datetime.now() - timedelta(days=1)
         elif s=='begin':
             return tl.begin
         elif s=='end':

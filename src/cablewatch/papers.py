@@ -3,10 +3,17 @@ import fnmatch
 import time
 import asyncio
 import aiohttp
+import sys
+import re
+import unicodedata
+import collections
+from datetime import datetime, timedelta, time
 from aiohttp import web
 from loguru import logger
-from cablewatch import config, loghlp
-from cablewatch.decorators import http_get
+from rapidfuzz import fuzz
+import json
+from cablewatch import config, loghlp, speech, banners
+from cablewatch.decorators import http_get, ToolDecorator
 
 
 class PapersService:
@@ -129,3 +136,112 @@ class PapersService:
                 pass
             await proc.wait()
         return resp
+
+
+def main():
+    tool = PapersTool(args=sys.argv)
+    tool()
+
+
+tooldec = ToolDecorator()
+
+class PapersTool(tooldec.BaseTool):
+    TIMELINE_NAME = 'papers'
+
+    @tooldec.action('gen','generate')
+    def generate(self):
+        ns = self._ns
+        day = ns.begin.date()
+        g = PapersGenerator(day)
+        g()
+
+
+class PapersGenerator:
+    def __init__(self, day):
+        self._begin = datetime.combine(day, time.min)
+        self._end = datetime.combine(day, time.max)
+        self._speaker_labels = collections.defaultdict(list)
+
+    def sanitizeBasename(self, value: str, replacement: str = "-",  max_length: int = 255):
+        value = unicodedata.normalize("NFKD", value)
+        value = value.encode("ascii", "ignore").decode("ascii")
+        value = re.sub(r'[\\/*?:"<>|]', replacement, value)
+        value = re.sub(r"\s+", replacement, value)
+        value = re.sub(rf"{re.escape(replacement)}+", replacement, value)
+        value = value.strip(replacement + ".")
+        if not value:
+            value = "file"
+        return value[:max_length]
+
+    def __call__(self):
+        pgm_current = None
+        for d in banners.BannersQuery(begin=self._begin, end=self._end):
+            if d['kind'] != 'programtitle':
+                continue
+            if (pgm_current is None):
+                pgm_current = d
+                continue
+            score = fuzz.ratio(d['content'], pgm_current["content"])
+            if score < 80:
+                self.pgm(pgm_current['content'], begin=pgm_current['begin'], end=d['begin'])
+                pgm_current = d
+        if pgm_current:
+            self.pgm(pgm_current['content'], begin=pgm_current['begin'], end=d['begin'])
+
+    def pgm(self, title, begin, end):
+        duration_mn = f'{int((end-begin).total_seconds()/60)}'
+        j = {}
+        j['title'] = title
+        j['date'] = begin.strftime("%d/%m/%Y")
+        j['begin'] = begin.strftime("%Hh%M")
+        j['end'] = end.strftime("%Hh%M")
+        j['duration'] = f'{duration_mn}mn'
+        content = []
+        j['content'] = content
+        basename = f"{begin.strftime("%Y%m%d_%Hh%M")}__{title}"
+        basename = self.sanitizeBasename(basename)
+        conf = config.Config()
+        previous_speaker = None
+        text = ''
+        topic = self.lookupTopic(begin)
+        text_begin = begin
+        for d in speech.SpeechQuery(begin=begin, end=end, last=dict(speaker=None, word='', timestamp=end)):
+            speaker = d['speaker']
+            if speaker != previous_speaker:
+                J = {}
+                if topic is not None:
+                    J['topic'] = topic
+                text = text.strip()
+                J['timestamp'] = text_begin.strftime("%Hh%Mm%S")
+                if len(text) > 0:
+                    J['speaker'] = self.lookupSpeakerLabel(previous_speaker, text_begin, d['timestamp'])
+                    J['text'] = text
+                previous_speaker = speaker
+                topic = self.lookupTopic(d['timestamp'])
+                content.append(J)
+                text = ''
+                text_begin = d['timestamp']
+            text += f' {d['word']}'
+        with open(f'{conf.PAPERS_DATADIR}/{basename}.json','w') as f:
+            f.write(json.dumps(j, indent=4))
+        logger.info(f"{basename!r}.json written")
+
+    def lookupSpeakerLabel(self, speaker, text_begin, text_end):
+        for d in banners.BannersQuery(begin=self._begin, end=self._end):
+            if d['kind'] != 'speaker':
+                continue
+            begin = d['begin']
+            end = d['begin'] + timedelta(seconds=d['duration'])
+            if begin >= text_begin and end <= text_end:
+                return f"#{speaker}  - {d['content']}"
+        return f"#{speaker}"
+
+    def lookupTopic(self, timestamp):
+        for d in banners.BannersQuery(begin=self._begin, end=self._end):
+            if d['kind'] != 'topic':
+                continue
+            begin = d['begin']
+            end = d['begin'] + timedelta(seconds=d['duration'])
+            if timestamp >= begin and timestamp <= end:
+                return d['content']
+        return None

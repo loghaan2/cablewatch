@@ -395,12 +395,15 @@ class SpeechQuery:
     WINDOW_SIZE = 100
     MIN_OVERLAP_SIZE = int(WINDOW_SIZE * 0.1)
 
-    def __init__(self, *, begin, end, layer="gold", logger=None):
+    def __init__(self, *, begin, end, last=None, layer="gold", logger=None):
+        if (begin is None) or (end is None):
+            raise AssertionError
         conf = config.Config()
         self._begin = begin
         self._end = end
         self._logger = logger
         self._layer = layer
+        self._last = last
         all_sequences_filenames = glob.glob(f"{conf.SPEECH_DATADIR}/*.json")
         all_sequences_filenames.sort()
         sequences = {}
@@ -411,10 +414,6 @@ class SpeechQuery:
         self._basenames = {}
 
     def inTimeRange(self, d):
-        if self._begin is None or self._end is None:
-            return True
-        if 'timestamp' not in d:
-            return True
         if d['timestamp'] >= self._begin and d['timestamp'] <= self._end:
             return True
         else:
@@ -423,6 +422,8 @@ class SpeechQuery:
     def __iter__(self):
         f = getattr(self, self._layer)
         yield from f()
+        if self._last is not None:
+            yield self._last
 
     def _raw(self):
         for seq in self._sequences.values():

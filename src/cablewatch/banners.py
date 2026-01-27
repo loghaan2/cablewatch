@@ -288,10 +288,8 @@ class BannersTool(tooldec.BaseTool):
 
 class BannersQuery:
     def __init__(self, *, begin, end, layer="silver", logger=None):
-        if begin is None:
-            begin = datetime.min
-        if end is None:
-            end = datetime.max
+        if (begin is None) or (end is None):
+            raise AssertionError
         conf = config.Config()
         self._begin = begin
         self._end = end
@@ -306,8 +304,6 @@ class BannersQuery:
         self._sequences = sequences
 
     def inTimeRange(self, d):
-        if self._begin is None or self._end is None:
-            return True
         end = d['begin'] + timedelta(seconds=d['duration'])
         if end < self._begin:
             return False

@@ -28,6 +28,7 @@ dependencies = [
     "duckdb (>=1.4.3,<2.0.0)",
     "pytesseract (>=0.3.13,<0.5.0)",
     "strip-ansi (>=0.1.1,<0.2.0)",
+    "rapidfuzz (>=3.14.3,<4.0.0)",
 ]
 
 
@@ -45,3 +46,4 @@ cablewatch-speech = "cablewatch.speech:main"
 cablewatch-adduser = "cablewatch.user:main"
 cablewatch-stash = "cablewatch.stash:main"
 cablewatch-banners = "cablewatch.banners:main"
+cablewatch-papers = "cablewatch.papers:main"
