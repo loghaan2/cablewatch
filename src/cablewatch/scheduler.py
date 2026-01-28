@@ -41,6 +41,7 @@ class SchedulerService:
         executors = {
             'default': ThreadPoolExecutor(max_workers=1),
             'speech': ThreadPoolExecutor(max_workers=1),
+            'speech-gcp': ThreadPoolExecutor(max_workers=1),
             'banners': ThreadPoolExecutor(max_workers=1),
         }
         sched = BackgroundScheduler(timezone=conf.TIMEZONE, executors=executors)
@@ -59,8 +60,8 @@ class SchedulerService:
         # speech planification job
         if self._speech_planification:
             sched.add_job(self.speech_upload, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech")
-            sched.add_job(self.speech_launch, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech")
-            sched.add_job(self.speech_fetch, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech")
+            sched.add_job(self.speech_launch, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech-gcp")
+            sched.add_job(self.speech_fetch, trigger="interval", seconds=self.WAKUP_INTERVAL, executor="speech-gcp")
             logger.warning('register speech planification jobs')
         else:
             logger.warning('no speech planification')
@@ -102,11 +103,14 @@ class SchedulerService:
     @log_exception
     def ingest_onfirstseg(self):
         logger.warning("ingest_onfirstseg()")
+        begin = self._ingest_service.getCurrentSegmentTimestamp()
+        begin = begin.strftime("%Y%m%d_%Hh%Mm%S")
+        duration = f'{self._timeline_duration}s'
         if self._speech_init:
-            tool = speech.SpeechTool(action='init', duration=f'{self._timeline_duration}s')
+            tool = speech.SpeechTool(action='init', begin=begin, duration=duration)
             tool()
         if self._banners_init:
-            tool = banners.BannersTool(action='init', duration=f'{self._timeline_duration}s')
+            tool = banners.BannersTool(action='init', begin=begin, duration=duration)
             tool()
         logger.warning("/ingest_onfirstseg()")
 
