@@ -68,9 +68,11 @@ class StdoutTee:
         conf = config.Config()
         if self._fobj is not None:
             self._fobj.close()
-        symlinkname = f"{conf.LOGS_DIR}/current.log"
-        if os.path.exists(symlinkname):
+        symlinkname = f"{conf.LOGS_DIR}/current"
+        try:
             os.unlink(symlinkname)
+        except FileNotFoundError:
+            pass
         now = datetime.now()
         dt = datetime.combine(now.date(), time(6, 0))
         if now >= dt:
@@ -78,7 +80,7 @@ class StdoutTee:
         self._rotate_dt = dt
         filename = f"{conf.LOGS_DIR}/{now.strftime('%Y%m%d_%Hh%Mm')}.log"
         self._fobj = open(filename, 'w')
-        os.symlink(filename, symlinkname)
+        os.symlink(os.path.basename(filename), symlinkname)
 
     def write(self, text):
         self._fobj.write(strip_ansi(text))
