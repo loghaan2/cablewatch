@@ -364,7 +364,7 @@ class SpeechTextPrinter:
             self._speaker_colors[speaker] = speaker_color
             self._next_speaker_color_index = (self._next_speaker_color_index + 1) % len(self.SPEAKER_COLORS)
         if speaker != self._last_speaker:
-            console.print(f'[{self.STAMP_COLOR}]<speaker:{speaker}>[/] ', **kwargs)
+            console.print(f'[{self.STAMP_COLOR}]<#{speaker}>[/] ', **kwargs)
             self._count = 31
         if self._count > 30:
             console.print(f'[{self.STAMP_COLOR}]<{d["timestamp"][9:]}>[/] ', **kwargs)
