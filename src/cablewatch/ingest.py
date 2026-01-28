@@ -574,8 +574,6 @@ class IngestTimeLine:
                 segments = []
         if len(segments):
             slices_.append(IngestTimeSlice(timeline=self, segments=segments))
-        if len(slices_):
-            slices_[-1].setLast()
         return slices_
 
 
@@ -644,13 +642,6 @@ class IngestTimeSlice:
             for seg in self._segments[1:-1]:
                 assert seg.outpoint is None
                 assert seg.inpoint is None
-
-    def setLast(self):
-        self._last = True
-
-    @property
-    def last(self):
-        return self._last
 
     @property
     def timeline(self):
