@@ -1,6 +1,6 @@
 import re
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from loguru import logger
 from rich import print as rich_print
 from cablewatch import loghlp
@@ -90,12 +90,15 @@ class ArgumentParser(argparse.ArgumentParser):
             return dt - delta
 
     def parseDateTime(self, s):
+        today = datetime.combine(datetime.now().date(), time.min)
         from cablewatch import ingest
         tl = ingest.IngestTimeLine.load('.all')
         if s=='now':
             return datetime.now()
+        elif s=='today':
+            return today
         elif s=='yesterday':
-            return datetime.now() - timedelta(days=1)
+            return today - timedelta(days=1)
         elif s=='begin':
             return tl.begin
         elif s=='end':
