@@ -72,6 +72,7 @@ class IngestService:
         self._aborter = aborter
         self._scheduler = None
         self._segment_filename = None
+        self._segment_timestamp = None
         self._status = None
         http_service.addDecoratedRoutes(self)
 
@@ -82,6 +83,9 @@ class IngestService:
         if self._scheduler is None:
             return
         self._scheduler.triggerJob(job_id)
+
+    def getCurrentSegmentTimestamp(self):
+        return self._segment_timestamp
 
     async def start(self):
         logger.info("starting ingest service")
@@ -173,6 +177,7 @@ class IngestService:
                     if self._segment_filename is None:
                         self.triggerJob('ingest-onfirstseg')
                     self._segment_filename = segment_filename
+                    self._segment_timestamp = dt
                     self._discont_segment_marker = segment_filename + '.discont-after'
             expected_count_values = set(sorted(range(3, HLS_LIST_SIZE*3+1, 3)))
             if count not in expected_count_values:

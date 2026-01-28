@@ -78,7 +78,7 @@ class BannersTool(tooldec.BaseTool):
     LOCAL_COPY = False
     SCORE_MAX = 20
 
-    @tooldec.action('init', begin='fseg.begin')
+    @tooldec.action('init')
     def init(self):
         ns = self._ns
         tl = ingest.IngestTimeLine(self.TIMELINE_NAME, begin=ns.begin, duration=ns.duration)

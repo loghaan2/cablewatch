@@ -104,7 +104,7 @@ class SpeechTool(tooldec.BaseTool):
             return math.inf
         return nsamples / (self.WAV_SAMPLE_RATE * self.WAV_SAMPLE_WIDTH)
 
-    @tooldec.action('init', begin='fseg.begin')
+    @tooldec.action('init')
     def init(self):
         ns = self._ns
         tl = ingest.IngestTimeLine(self.TIMELINE_NAME, begin=ns.begin, duration=ns.duration)
