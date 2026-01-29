@@ -1,6 +1,5 @@
 import os
 import fnmatch
-import time
 import asyncio
 import aiohttp
 import sys
@@ -92,11 +91,11 @@ class PapersService:
         conf = config.Config()
         filter = self.makeFilter(request)
         basenames = await self.makeList(filter)
-        archive_name = f'{time.strftime("%Y%m%d_%Hh%M")}_papers_{filter.encode().hex()}'
+        archive_name = f'{datetime.now().strftime("%Y%m%d_%Hh%M")}_papers_{filter.encode().hex()}'
         resp = web.StreamResponse(
             headers = {
-                "Content-Type": "application/zip",
-                "Content-Disposition": f'attachment; filename="{archive_name}.zip"',
+                "Content-Type": "application/gzip",
+                "Content-Disposition": f'attachment; filename="{archive_name}.tar.gz"',
             }
         )
         await resp.prepare(request)
