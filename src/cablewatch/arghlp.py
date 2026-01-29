@@ -48,12 +48,13 @@ class ArgumentParser(argparse.ArgumentParser):
             group.add_argument('-Td', dest='duration', default=None, help="duration")
         if classname_ == 'SuperService':
             group = self.add_argument_group("Super service options")
-            group.add_argument('-Ih',  dest='ingest_halt',           default=False, action='store_true',  help="start ingest in halt mode")
+            group.add_argument('-Ih',  dest='ingest_record',         default=True,  action='store_false',  help="start ingest in halt mode")
             group.add_argument('-Inp', dest='ingest_planification',  default=True,  action='store_false', help="no ingest planification")
             group.add_argument('-Sni', dest='speech_init',           default=True,  action='store_false', help="no speech init")
             group.add_argument('-Snp', dest='speech_planification',  default=True,  action='store_false', help="no speech planification")
             group.add_argument('-Bni', dest='banners_init',          default=True,  action='store_false', help="no banners init")
             group.add_argument('-Bnp', dest='banners_planification', default=True,  action='store_false', help="no banners planification")
+            group.add_argument('--http-only', dest='http_only',      default=True,  action='store_true',  help="http only")
             group.add_argument('-Td',  dest='duration',              default=None,  help="timeline duration")
             log_fileoutput = True
         else:
@@ -191,6 +192,10 @@ class ArgumentParser(argparse.ArgumentParser):
         if ns.check_logs:
             for lvl in 'debug', 'info', 'warning', 'error', 'critical':
                 logger.bind(name=f'[{lvl[::-1]}]').log(lvl.upper(), f'{lvl}')
+        if has_opt('http_only'):
+            if ns.http_only:
+                for opt in 'ingest_record', 'ingest_planification', 'speech_init', 'speech_planification', 'banners_init', 'banners_planification':
+                    setattr(ns, opt, False)
         if error is not None:
             self.error(error)
         return ns

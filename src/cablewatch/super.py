@@ -50,7 +50,7 @@ async def main():
     ingest_service = ingest.IngestService(
         http_service=http_service,
         aborter=aborter,
-        recording_requested=not ns.ingest_halt,
+        recording_requested=ns.ingest_record,
     )
     scheduler_service = scheduler.SchedulerService(
         ingest_service=ingest_service,
