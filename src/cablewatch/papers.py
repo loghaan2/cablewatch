@@ -214,6 +214,8 @@ class PapersGenerator:
                 J['timestamp'] = text_begin.strftime("%Hh%Mm%S")
                 if len(text) > 0:
                     J['speaker'] = self.lookupSpeakerLabel(previous_speaker, text_begin, d['timestamp'])
+                    cmd = f'cablewatch-ingest pipe -Tb {(text_begin+timedelta(seconds=15)).strftime("%Y%m%d_%Hh%Mm%S")} -Td 5mn|mpv - --no-terminal'
+                    J['playback-cmd'] = cmd
                     J['text'] = text
                 previous_speaker = speaker
                 topic = self.lookupTopic(d['timestamp'])
