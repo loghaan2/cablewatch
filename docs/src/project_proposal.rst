@@ -1,12 +1,3 @@
-.. |br| raw:: html
-
-    <br/>
-
-
-.. |nbsp| raw:: html
-
-    &nbsp;
-
 
 .. |big_hspace| raw:: html
 

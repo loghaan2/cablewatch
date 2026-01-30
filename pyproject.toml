@@ -29,6 +29,7 @@ dependencies = [
     "pytesseract (>=0.3.13,<0.5.0)",
     "strip-ansi (>=0.1.1,<0.2.0)",
     "rapidfuzz (>=3.14.3,<4.0.0)",
+    "weasyprint (>=68.0,<69.0)",
 ]
 
 
@@ -47,3 +48,4 @@ cablewatch-adduser = "cablewatch.user:main"
 cablewatch-stash = "cablewatch.stash:main"
 cablewatch-banners = "cablewatch.banners:main"
 cablewatch-papers = "cablewatch.papers:main"
+cablewatch-build-docs = "cablewatch.scripts.build_docs:main"

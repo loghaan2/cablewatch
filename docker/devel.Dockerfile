@@ -25,8 +25,16 @@ RUN apt-get update \
         emacs \
         tree \
         unzip \
+        sassc \
         tesseract-ocr \
         tesseract-ocr-fra \
+        libcairo2 \
+        libcairo2-dev \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libgdk-pixbuf-2.0-0 \
+        libffi-dev \
+        shared-mime-info \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

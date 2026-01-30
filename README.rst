@@ -1,12 +1,12 @@
 ================
- ``cablewatch``
-================
-----------------
  ``README.rst``
-----------------
+================
+
+.. after-titles
 
 
-Setup local virtual environment
+
+Setup Local Virtual Environment
 ===============================
 
 .. code-block:: shell-session
@@ -17,7 +17,7 @@ Setup local virtual environment
     (cablewatch) $ pip install -e .
 
 
-Setup development docker image
+Setup Development Docker Image
 ==============================
 
 Build
@@ -47,18 +47,235 @@ Activate
     (cablewatch) $
 
 
-Setup virtual environment
+Setup Virtual Environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: shell-session
 
     (cablewatch) $ pip install -e .
 
+|pgbr|
 
-Running the tests
-=================
 
-.. code-block::
+Local Configuration File
+========================
+
+To make the project work correctly, a local ``cablewatch-local.toml`` file must be created.  
+Simply copy ``cablewatch-local.toml.sample`` to ``cablewatch-local.toml`` and edit it according
+to your local needs:
+
+.. literalinclude:: ../../cablewatch-local.toml.sample
+
+
+|pgbr|
+
+
+User Management
+~~~~~~~~~~~~~~~
+
+To use the web service, a user must be created:
+
+.. code-block:: shell-session
+
+    (cablewatch) $ cablewatch-adduser
+    Username: loghaan
+    Password: <you_will_never_guess_this_ha_ha_ha>
+    Roles: admin
+
+    Copy the content below into your ``cablewatch-local.toml`` file:
+
+    [[users]]
+    username = "loghaan"
+    password_hash = "5c0e24af..."
+    roles = "admin"
+
+Copy the ``[[users]]`` section into ``cablewatch-local.toml`` to finalize the user creation.  
+For now, only the ``admin`` role exists, which grants additional privileges.
+
+
+Super Services
+==============
+
+All ``cablewatch`` services (ingest, web, orchestration, …) run within a single process.
+
+
+Launching the Services
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: shell-session
+
+    (cablewatch) $ cablewatch-super
+    10:06:55 INFO cablewatch.http starting web service
+    10:06:55 INFO cablewatch.http web service started
+    10:06:55 INFO cablewatch.ingest starting ingest service
+    10:06:55 INFO cablewatch.ingest ingest service started
+    10:06:55 INFO cablewatch.ingest run recording
+    10:06:55 INFO cablewatch.ingest command is 'yt-dlp -f best -o - https://...
+    (...)
+
+This command starts all services.
+
+|pgbr|
+
+
+Ingest Service
+==============
+
+Video segment files are written to ``data/ingest/``.
+
+Control / monitor the service via the *backoffice* web page
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The web service runs on port ``8000``. Open ``http://127.0.0.1:8000/ingest.html`` in your browser.
+
+
+Control / monitor the service via the web ``API``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The web service runs on port ``8000``. Open ``http://127.0.0.1:8000/ingest.html`` in your browser.
+
+A WebSocket client tool is required to interact with the ``API``. ``wscat`` can be used for this
+purpose, although other tools exist. ``wscat`` can be installed using the following command:
+
+.. code-block:: shell-session
+
+    $ npm install wscat
+
+
+.. code-block:: shell-session
+
+    (cablewatch) $ wscat -c ws://127.0.0.1:8000/api/ingest --auth loghaan:<you_will_never_guess_this_ha_ha_ha>
+    Connected (press CTRL+C to quit)
+    < {"type": "status", "recording_requested": true, "pid": 28621, "service_start_time": ...
+
+    > halt
+    < {"type": "status", "recording_requested": false, "pid": 28621, "service_start_time": ...
+    < {"type": "status", "recording_requested": false, "pid": null, "service_start_time": ...
+    < {"type": "command-reply", "message": "ok"}
+    < {"type": "status", "recording_requested": false, "pid": null, "service_start_time": ...
+    < {"type": "status", "recording_requested": false, "pid": null, "service_start_time": ...
+
+    > record
+    < {"type": "status", "recording_requested": true, "pid": null, "service_start_time": ...
+    < {"type": "command-reply", "message": "ok"}
+    < {"type": "status", "recording_requested": true, "pid": 29545, "service_start_time": ...
+    < {"type": "status", "recording_requested": true, "pid": 29545, "service_start_time": ...
+    > 
+
+
+Papers Service
+==============
+
+Generated papers are written to ``data/papers/``.
+
+
+Lookup / download papers via the *backoffice* web page
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The web service runs on port ``8000``. Open ``http://127.0.0.1:8000/papers.html`` in your browser.
+
+
+Lookup / download papers via the *backoffice* web ``API``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+List papers
+-----------
+
+.. code-block:: shell-session
+
+    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> http://192.168.0.102:8000/api/papers/list | jq .
+    % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                     Dload  Upload   Total   Spent    Left  Speed
+    100  1948 100  1948   0     0 48070     0  --:--:-- --:--:-- --:--:-- 48700
+    [
+        "20260128_16h50__Le-16h-18h.json",
+        "20260128_17h54__Vrai-ou-Faux.json",
+        (...)
+        "20260130_21h59__Le-Pour-et-le-Contre.json",
+        "20260130_22h58__Le-23h.json"
+    ]
+
+
+Download first paper
+--------------------
+
+.. code-block:: shell-session
+
+    (cablewatch) $
+    curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download/0'
+
+
+Download all papers as archive
+------------------------------
+
+.. code-block:: shell-session
+
+    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download-archive/*matinale*'
+
+
+List and filter papers
+----------------------
+
+.. code-block:: shell-session
+
+    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> 'http://192.168.0.102:8000/api/papers/list/*matinale*' |jq .
+    % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+    100   216 100   216   0     0  5014     0  --:--:-- --:--:-- --:--:--  5023
+    [
+        "20260129_06h32__La-matinale.json",
+        "20260129_09h00__La-matinale.json",
+        "20260130_06h29__La-matinale.json",
+        "20260130_06h59__La-matinale.json",
+        "20260130_07h30__La-matinale.json",
+        "20260130_08h58__La-matinale.json"
+    ]
+
+
+Download first filtered paper
+-----------------------------
+
+.. code-block:: shell-session
+
+    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download/*matinale*/0'
+
+
+Download all filtered papers as archive
+---------------------------------------
+
+.. code-block:: shell-session
+
+    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download-archive/*matinale*'
+
+
+Logs
+====
+
+Logs are available in ``logs/`` stored in files following the ``YYYYMMDD_HHhmm.log`` pattern.
+
+
+
+Build the Documentation
+=======================
+
+.. code-block:: shell-session
+
+    (cablewatch) $ cablewatch-build-docs
+
+
+Documentation files are then available at the following locations:
+    - ``docs/build/report/report.pdf``
+    - ``docs/build/rtd/rtd.html`` (this includes ``README.rst`` and ``ROADMAP.md``)
+    - ``docs/build/project_proposal/project_proposal.html`` (project proposal slides)
+
+
+
+
+
+Running Tests
+=============
+
+.. code-block:: shell-session
 
     (cablewatch) $ pytest -v tests/
     $ pytest -v tests
@@ -99,109 +316,12 @@ Running the tests
         25 passed
 
 
-Super Services
-==============
+Google Cloud CLI Notes
+~~~~~~~~~~~~~~~~~~~~~~
 
-All ``cablewatch`` services (ingest, web, orchestration, ...) are running in a single process.
-
-
-Web users managment
-~~~~~~~~~~~~~~~~~~~
-
-To use the web service, a user must be created:
+Don't forget to logging to glcoud beforer using ``cablewatch-speech``:
 
 .. code-block:: shell-session
 
-    (cablewatch) $ cablewatch-adduser
-    Username: loghaan
-    Password: <you_will_never_guess_this_ha_ha_ha>
-    Roles: admin
-
-    Just copy the content below to your cablewatch-local.toml:
-
-    [[users]]
-    username = "loghaan"
-    password_hash = "5c0e24af..."
-    roles = "admin"
-
-Just copy the ``[[users]]`` section in ``cablewatch-local.toml`` to finalize the user creation. For now there is only the
-``admin`` role which has some extra pivileges.
-
-
-Launch the services
-~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: shell-session
-
-    (cablewatch) $ cablewatch-super
-    10:06:55 INFO cablewatch.http starting web service
-    10:06:55 INFO cablewatch.http web service started
-    10:06:55 INFO cablewatch.ingest starting ingest service
-    10:06:55 INFO cablewatch.ingest ingest service started
-    10:06:55 INFO cablewatch.ingest run recording
-    10:06:55 INFO cablewatch.ingest command is 'yt-dlp -f best -o - https://...
-    (...)
-
-This start all the services.
-
-
-Ingest
-~~~~~~
-
-Video segments files are written in ``data/ingest/``. Logs are available in ``logs/``
-stored in files followin the ``YYYYMMDD_HHhmm.log``.
-
-
-Control/monitor the service via its *backoffice* web page
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Web service is running on port ``8000``. Open ``http://127.0.0.1:8000/ingest.html`` with your browser.
-
-
-Control/monitor the service via its web ``API``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Web service is running on port ``8000``. Open ``http://127.0.0.1:8000/ingest.html`` with your browser.
-
-You need a websocket client tool to "speak" with the ``API``. ``wscat`` can do the job but other tools
-exists. ``wscat`` can be installed with the following commands:
-
-
-.. code-block:: shell-session
-
-    $ npm install wscat
-
-
-.. code-block:: shell-session
-
-    (cablewatch) $ wscat -c ws://127.0.0.1:8000/api/ingest --auth loghaan:you_will_never_guess_this_ha_ha_ha>
-    Connected (press CTRL+C to quit)
-    < {"type": "status", "recording_requested": true, "pid": 28621, "service_start_time": ...
-
-    > halt
-    < {"type": "status", "recording_requested": false, "pid": 28621, "service_start_time": ...
-    < {"type": "status", "recording_requested": false, "pid": null, "service_start_time": ...
-    < {"type": "command-reply", "message": "ok"}
-    < {"type": "status", "recording_requested": false, "pid": null, "service_start_time": ...
-    < {"type": "status", "recording_requested": false, "pid": null, "service_start_time": ...
-
-    > record
-    < {"type": "status", "recording_requested": true, "pid": null, "service_start_time": ...
-    < {"type": "command-reply", "message": "ok"}
-    < {"type": "status", "recording_requested": true, "pid": 29545, "service_start_time": ...
-    < {"type": "status", "recording_requested": true, "pid": 29545, "service_start_time": ...
-    > 
-
-
-Build the docs
-==============
-
-.. code-block:: shell-session
-
-    (cablewatch) $ make docs
-
-
-Documentation files are then available at the following locations:
-    - ``docs/build/README/README/index.html`` (this README document)
-    - ``docs/build/ROADMAP/ROADMAP/index.html`` (from ``ROADMAP.md``)
-    - ``docs/build/project_proposal/project_proposal/index.html`` (project proposal slides)
+    $ gcloud auth login                       # Authenticates the user for the CLI
+    $ gcloud auth application-default login   # Authenticates applications (SDK, libs)

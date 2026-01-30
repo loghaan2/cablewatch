@@ -1,0 +1,244 @@
+// report/sass/style.sass
+
+$fg0: #004020
+$fg1: #801020
+$fg2: #0a3b3b
+$fg3: #808080
+
+$bg0: #e0fff0
+
+
+@page
+  @bottom-right
+    color: $fg0
+    content: counter(page)
+    height: 0.5cm
+    text-align: center
+    width: 0.5cm
+    size: A4
+    border: solid $fg0
+
+
+@page:first
+  size: A4
+  margin: 0;
+  background-image: url(background-first-page.png)
+  background-repeat: no-repeat;
+  background-position: center;
+
+html
+  body
+    a.headerlink
+      visibility: hidden
+
+    a
+      color: $fg0
+      font-weight: bold
+
+    .title-primary.rubric
+      position: relative
+      top: 500px
+      text-align: center
+      code
+        .pre
+          font-size: 50pt
+          color: $fg2
+
+    .title-secondary.rubric
+      position: relative
+      text-align: center
+      top: 500px
+      font-size: 20pt
+      color: $fg3
+
+    .title-fields.rubric
+      position: relative
+      text-align: right
+      top: 600px
+      font-size: 16pt
+      color: black
+
+    h1
+      font-size: 21pt
+
+    h2
+      font-size: 15pt
+
+    h3
+      font-size: 14pt
+
+    h4
+      font-size: 13pt
+
+    h5
+      font-size: 12pt
+
+    p
+      text-align: justify
+      font-size: 11pt
+
+    p.page-break
+      page-break-before: always
+      top: 0%
+      left: 0%
+      visibility: hidden
+
+    figure
+      .caption-text
+        font-style: italic
+
+    table
+      width: 100%
+      border-collapse: collapse
+      background-color: #ffffff
+      color: $fg0
+      font-family: Arial, sans-serif
+      font-size: 16px
+
+      th, td
+        padding: 0 1rem
+        border: 1px solid #ccc
+        text-align: left
+
+      th
+        background-color: $bg0
+        color: $fg1
+        font-weight: bold
+
+      tr
+        &:nth-child(even)
+          background-color: #f9f9f9
+
+        &:hover
+          background-color: $bg0
+
+        td
+          vertical-align: top
+
+      caption
+        caption-side: top
+        font-size: 1.2rem
+        font-weight: bold
+        margin-bottom: 0.5rem
+        color: $fg1
+
+    .highlight
+      font-size: 8pt
+      font-weight: bold
+      color: black
+      background-color: $bg0
+      border: solid $fg0
+      border-width: 1px 0 0 0
+
+    .highlight-shell-session
+      .gp
+        color: $fg0
+
+      .go
+        font-weight: normal
+
+    .highlight-python
+      .kn
+        color: purple
+
+      .c1
+        color: DarkSlateBlue
+
+      .nn
+        color: blue
+
+      .n
+        color: black
+
+      .nd
+        color: red
+
+      .sa
+        color: DarkGreen
+
+      .s1
+        color: $fg1
+
+      .se
+        color: $fg1
+
+      .si
+        color: rgba($fg1, 2.0)
+
+    .highlight-jinja
+      .c
+        color: DarkSlateBlue
+
+      .cp
+        color: $fg1
+
+      .nv
+        color: purple
+
+    code.literal
+      color: black
+      font-weight: 400
+
+    .plantuml
+      img
+        width: 100%
+
+    // -----------------------------------------------------------------------------------------
+    // documentation specific
+    // -----------------------------------------------------------------------------------------
+    img.overview
+      position: relative
+      left: 80px
+
+    img.architecture
+      position: relative
+      left: -75px
+
+    img.text
+      vertical-align: middle
+
+    img.ingest
+      position: absolute
+      top: -70px
+      left: 450px
+      z-index: -1
+
+    img.ingest-obj-diagram
+      position: relative
+      left: 100px
+
+    .small-font
+      .highlight
+        font-size: 6pt
+
+    img.banners
+      position: absolute
+      top: -60px
+      left: 450px
+
+    img.speech
+      position: absolute
+      top: -70px
+      left: 450px
+
+    img.papers
+      position: absolute
+      top: -70px
+      left: 450px
+
+    img.scheduler
+      position: absolute
+      top: -70px
+      left: 450px
+
+    img.http
+      position: absolute
+      top: -70px
+      left: 480px
+
+    section:nth-of-type(n+10)
+      span.sectnum
+        display: none
+
+      h1
+        font-size: 18pt

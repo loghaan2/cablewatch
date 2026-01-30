@@ -1,6 +1,11 @@
+################################
+# cablewatch-local.toml.sample #
+################################
+
 [config]
 ROADMAP_HACKMD_URL = 'https://hackmd.io/...'
 
+# not required can be left commented out
 #YT_DLP_EXTRA_ARGS = '--cookies-from-browser chrome'
 #YT_DLP_EXTRA_ARGS = '--cookies-from-browser firefox'
 # from yt-dlp help:

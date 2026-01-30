@@ -17,7 +17,7 @@ def main():
     div = soup.find("div", id="publish-page")
     if not div:
         raise AssertionError("Cannot find publish page")
-    with open("ROADMAP.md", 'w') as f:
+    with open(f"{conf.PROJECT_DIR}/ROADMAP.md", 'w') as f:
         f.write(div.get_text(strip=True))
         f.write('\n')
 

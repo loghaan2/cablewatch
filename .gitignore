@@ -1,4 +1,6 @@
 docs/build/
+docs/src/_themes/report/static/style.css
+docs/src/_themes/slides/static/style.css
 data/ingest/tmp/segment_*.ts
 data/ingest/tmp/*.concat
 data/ingest/timelines/*.json
