@@ -855,7 +855,7 @@ class IngestTool(tooldec.BaseTool):
         try:
             name = self.getName(0, use_argparse_error=False)
         except IndexError:
-            tl = IngestTimeLine.load('.all')
+            tl = IngestTimeLine('.pipe', begin=ns.begin, duration=ns.duration)
         else:
             self.ensureName(name, 'existing')
             tl = IngestTimeLine.load(name)
