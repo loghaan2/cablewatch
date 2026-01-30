@@ -9,7 +9,7 @@ class Config:
     WEB_LISTENADDR = '0.0.0.0'
     WEB_PORT = 8000
     ROOT_WEBDIR = '{PROJECT_DIR}/www'
-    DOCS_WEBDIR = '{PROJECT_DIR}/docs'
+    DOCS_DIR = '{PROJECT_DIR}/docs'
     LOGS_DIR =  '{PROJECT_DIR}/logs'
     STASH_DIR = '{PROJECT_DIR}/stash'
     INGEST_DATADIR =  '{PROJECT_DIR}/data/ingest'
