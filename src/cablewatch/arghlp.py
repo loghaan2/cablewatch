@@ -54,7 +54,7 @@ class ArgumentParser(argparse.ArgumentParser):
             group.add_argument('-Snp', dest='speech_planification',  default=True,  action='store_false', help="no speech planification")
             group.add_argument('-Bni', dest='banners_init',          default=True,  action='store_false', help="no banners init")
             group.add_argument('-Bnp', dest='banners_planification', default=True,  action='store_false', help="no banners planification")
-            group.add_argument('--http-only', dest='http_only',      default=True,  action='store_true',  help="http only")
+            group.add_argument('--http-only', dest='http_only',      default=False,  action='store_true',  help="http only")
             group.add_argument('-Td',  dest='duration',              default=None,  help="timeline duration")
             log_fileoutput = True
         else:
