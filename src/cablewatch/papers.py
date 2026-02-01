@@ -159,7 +159,26 @@ class PapersGenerator:
     def __init__(self, day):
         self._begin = datetime.combine(day, time.min)
         self._end = datetime.combine(day, time.max)
-        self._speaker_labels = collections.defaultdict(list)
+        self._speaker_mapping = collections.defaultdict(set)
+
+    def buildDailySpeakerMapping(self):
+        sec_to_speakerlabel = {}
+        for d in banners.BannersQuery(begin=self._begin, end=self._end):
+            if d['kind'] != 'speaker':
+                continue
+            b = d['begin']
+            dur = d['duration']
+            sec0 = int(b.hour * 3600  +  b.minute * 60  +  b.second)
+            for dsec in range(int(d['duration'])):
+                sec_to_speakerlabel[sec0 + dsec] = d['content']
+        for d in speech.SpeechQuery(begin=self._begin, end=self._end):
+            ts = d['timestamp']
+            sec = int(ts.hour * 3600  +  ts.minute * 60  +  ts.second)
+            if sec not in sec_to_speakerlabel:
+                continue
+            spklbl = sec_to_speakerlabel[sec]
+            spk = d['speaker']
+            self._speaker_mapping[spk].add(spklbl)
 
     def sanitizeBasename(self, value: str, replacement: str = "-",  max_length: int = 255):
         value = unicodedata.normalize("NFKD", value)
@@ -173,6 +192,7 @@ class PapersGenerator:
         return value[:max_length]
 
     def __call__(self):
+        self.buildDailySpeakerMapping()
         pgm_current = None
         for d in banners.BannersQuery(begin=self._begin, end=self._end):
             if d['kind'] != 'programtitle':
@@ -213,7 +233,7 @@ class PapersGenerator:
                 text = text.strip()
                 J['timestamp'] = text_begin.strftime("%Hh%Mm%S")
                 if len(text) > 0:
-                    J['speaker'] = self.lookupSpeakerLabel(previous_speaker, text_begin, d['timestamp'])
+                    J['speaker'] = self.lookupSpeakerLabel(previous_speaker)
                     cmd = f'cablewatch-ingest pipe -Tb {(text_begin+timedelta(seconds=15)).strftime("%Y%m%d_%Hh%Mm%S")} -Td 5mn|mpv - --no-terminal'
                     J['playback-cmd'] = cmd
                     J['text'] = text
@@ -227,15 +247,18 @@ class PapersGenerator:
             f.write(json.dumps(j, indent=4))
         logger.info(f"{basename!r}.json written")
 
-    def lookupSpeakerLabel(self, speaker, text_begin, text_end):
-        for d in banners.BannersQuery(begin=self._begin, end=self._end):
-            if d['kind'] != 'speaker':
-                continue
-            begin = d['begin']
-            end = d['begin'] + timedelta(seconds=d['duration'])
-            if begin >= text_begin and end <= text_end:
-                return f"#{speaker}  - {d['content']}"
-        return f"#{speaker}"
+    def lookupSpeakerLabel(self, speaker):
+        lbl = None
+        try:
+            labels = self._speaker_mapping[speaker]
+            if len(labels) == 1:
+                lbl = list(labels)[0]
+        except KeyError:
+            pass
+        if lbl is None:
+            return f"#{speaker}"
+        else:
+            return f"#{speaker}  - {lbl}"
 
     def lookupTopic(self, timestamp):
         for d in banners.BannersQuery(begin=self._begin, end=self._end):
