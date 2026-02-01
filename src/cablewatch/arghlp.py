@@ -112,7 +112,7 @@ class ArgumentParser(argparse.ArgumentParser):
             return tl.last_segment.begin
         elif s=='lseg.end':
             return tl.last_segment.end
-        for format in "%Y%m%d_%Hh%Mm%S", "%Y%m%d_%Hh%M", "%Y%m%d_%Hh", "%Hh%Mm%S", "%Hh%M", "%Hh":
+        for format in "%Y%m%d_%Hh%Mm%S", "%Y%m%d_%Hh%M", "%Y%m%d_%Hh", "%Y%m%d", "%Hh%Mm%S", "%Hh%M", "%Hh":
             try:
                 dt = datetime.strptime(s, format)
                 if '%Y' not in format:
