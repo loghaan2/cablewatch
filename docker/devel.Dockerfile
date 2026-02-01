@@ -21,6 +21,7 @@ RUN apt-get update \
         mc \
         make \
         npm \
+        jq \
         emacs \
         tree \
         unzip \
