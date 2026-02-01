@@ -12,6 +12,7 @@ data/papers/*.json
 data/database.duckdb
 stash/*.tar
 logs/*.log
+logs/current
 src/cablewatch/__pycache__/
 src/cablewatch/scripts/__pycache__/
 cablewatch-local.toml
