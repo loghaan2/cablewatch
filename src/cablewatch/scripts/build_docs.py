@@ -31,6 +31,8 @@ def main():
     for master_doc, backend in MASTER_DOCS.items():
         if 'html' in backend:
             system(f"CABLEWATCH_MASTER_DOC={master_doc} sphinx-build -E -b html . ../build/{master_doc}")
+        if 'revealjs' in backend:
+            system(f"CABLEWATCH_MASTER_DOC={master_doc} sphinx-build -E -b revealjs . ../build/{master_doc}")
         if 'weasyprint' in backend:
             system(f"weasyprint ../build/{master_doc}/{master_doc}.html ../build/{master_doc}/{master_doc}.pdf")
 
