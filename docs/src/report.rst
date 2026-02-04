@@ -75,7 +75,6 @@ pour chaque émission de la journée.
 
 .. image:: _static/images/overview.png
   :class: overview
-  :scale: 80%
 
 |br|
 
@@ -139,31 +138,24 @@ orienté *data flow* qui présente ces différents composants ainsi que les lien
 unissent:
 
 .. image:: _static/images/architecture.png
-  :scale: 70%
   :class: architecture
 
 .. |data_arrow| image:: _static/images/data_arrow.png
-  :scale: 35%
   :class: text
 
 .. |control_arrow| image:: _static/images/control_arrow.png
-  :scale: 35%
   :class: text
 
 .. |control_arrow_not_implemented| image:: _static/images/control_arrow_not_implemented.png
-  :scale: 35%
   :class: text
 
 .. |service| image:: _static/images/service.png
-  :scale: 30%
   :class: text
 
 .. |batch| image:: _static/images/batch.png
-  :scale: 30%
   :class: text
 
 .. |filesystem| image:: _static/images/filesystem.png
-  :scale: 30%
   :class: text
 
 
@@ -220,7 +212,6 @@ Composant ``cablewatch.ingest``
 ===============================
 
 .. image:: _static/images/ingest.png
-  :scale: 50%
   :class: ingest
 
 
@@ -250,7 +241,7 @@ Pour démarrer le service, comme tous les autres service, il faut lancer le prog
 
 .. code-block:: shell-session
 
-    (cablewatch) $ cablewatch-super
+    $ cablewatch-super
     20260201_11h01m27 INFO cablewatch.super args: []
     (...)
     20260201_11h01m27 INFO cablewatch.ingest starting ingest service
@@ -261,7 +252,7 @@ Voilà à quoi peut ressembler le dossier où sont stockés les segments après 
 
 .. code-block:: shell-session
 
-    (cablewatch) $ ls data/ingest
+    $ ls data/ingest
     segment_20260128_16h53m07_30000ms.ts     segment_20260128_16h58m05_30000ms.ts
     segment_20260128_16h53m36_30000ms.ts     segment_20260128_16h58m36_30000ms.ts
     segment_20260128_16h54m06_30000ms.ts     segment_20260128_16h59m06_30000ms.ts
@@ -296,7 +287,6 @@ Ci-dessous un diagramme d'objets qui est une photo à un instant donné du syst�
 valeurs d’attributs et les liens entre eux:
 
 .. image:: _static/images/ingest_obj_diagram.png
-  :scale: 54%
   :class: ingest-obj-diagram
 
 |pgbr|
@@ -311,7 +301,7 @@ ci-dessous:
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-ingest list
+    $ cablewatch-ingest list
     ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
     ┃ NAME    ┃ BEGIN             ┃ END               ┃ DURATION       ┃ EFFECTIVE_DURATION ┃ NUM_SEGMENTS ┃ NUM_DISCONTINUITIES ┃
     ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
@@ -325,7 +315,7 @@ Au bout d'un moment, les ``timelines`` ``"speech"`` et ``"banners"`` ont "bougé
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-ingest list
+    $ cablewatch-ingest list
     ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
     ┃ NAME    ┃ BEGIN             ┃ END               ┃ DURATION       ┃ EFFECTIVE_DURATION ┃ NUM_SEGMENTS ┃ NUM_DISCONTINUITIES ┃
     ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
@@ -345,7 +335,6 @@ Composant ``cablewatch.banners``
 ================================
 
 .. image:: _static/images/banners.png
-  :scale: 50%
   :class: banners
 
 
@@ -353,7 +342,7 @@ Le composant logiciel ``banners`` permet d’extraire certaines méta-informatio
 telles que le titre de l’émission, le sujet traité ou le locuteur. Voici à quoi ressemblent ces bandeaux:
 
 .. image:: _static/images/franceinfo_frame_with_arrows.png
-  :scale: 50%
+  :class: franceinfo
 
 À noter que sur cette *frame* figure un quatrième bandeau. Il s’agit de brèves d’actualité, de type dépêche ``AFP``,
 généralement sans rapport avec le contenu de la vidéo. Ce bandeau n’est donc pas pris en compte.
@@ -362,8 +351,8 @@ Voici comment lancer l’opération « à la main »:
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-banners init -Tb 20260130_17h00m00 -Td 15mn
-    (cablewatch) $ cablewatch-ingest list
+    $ cablewatch-banners init -Tb 20260130_17h00m00 -Td 15mn
+    $ cablewatch-ingest list
     ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
     ┃ NAME    ┃ BEGIN             ┃ END               ┃ DURATION ┃ EFFECTIVE_DURATION ┃ NUM_SEGMENTS ┃ NUM_DISCONTINUITIES ┃
     ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
@@ -379,13 +368,13 @@ Pour lancer l’extraction sur cette *timeline*, on exécute la commande suivant
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-banners extract
+    $ cablewatch-banners extract
     20260130_17h38m56 INFO cablewatch.banners timeline before: 'banners' begin='20260130_17h00m00' duration=900.0
     20260130_17h38m56 INFO cablewatch.banners detect banners of kind 'topic'...
     20260130_17h38m56 INFO cablewatch.banners run 'ffmpeg -i /home/loghaan/cablewatch/data/ingest/segment_20260130_17h00m00_30000ms.ts ...
     20260130_17h38m58 INFO cablewatch.banners banner frame 'topic' detected at {'duration': 3.1, 'end': 108.1, 'start': 166.666667}s
     (...)
-    (cablewatch) $ cablewatch-ingest list
+    $ cablewatch-ingest list
     ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
     ┃ NAME    ┃ BEGIN             ┃ END               ┃ DURATION ┃ EFFECTIVE_DURATION ┃ NUM_SEGMENTS ┃ NUM_DISCONTINUITIES ┃
     ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
@@ -424,7 +413,7 @@ Voici à quoi peut ressembler le répertoire de stockage:
 
 .. code-block:: shell-session
 
-    (cablewatch) $ ls data/banners
+    $ ls data/banners
     20260130_16h47m36_810000ms.json         20260130_19h02m06_810000ms.json
     20260130_17h02m07_811000ms.json         20260130_19h17m06_810000ms.json
     20260130_17h17m06_810000ms.json         20260130_19h32m06_810000ms.json
@@ -505,11 +494,11 @@ A titre indicatif sur une journée type d'enregistrement (de ``6h30`` à ``0h``)
 .. code-block:: shell-session
   :class: small-font
 
-  (cablewatch) $ cablewatch-banners -Tb 20260129_0h00 -Td 24h|grep "'speaker'"|wc -l
+  $ cablewatch-banners -Tb 20260129_0h00 -Td 24h|grep "'speaker'"|wc -l
   1055
-  (cablewatch) $ cablewatch-banners -Tb 20260129_0h00 -Td 24h|grep "'programtitle'"|wc -l
+  $ cablewatch-banners -Tb 20260129_0h00 -Td 24h|grep "'programtitle'"|wc -l
   591
-  (cablewatch) $ cablewatch-banners -Tb 20260129_0h00 -Td 24h|grep "'topic'"|wc -l
+  $ cablewatch-banners -Tb 20260129_0h00 -Td 24h|grep "'topic'"|wc -l
   1779
 
 
@@ -520,7 +509,6 @@ Composant ``cablewatch.speech``
 ===============================
 
 .. image:: _static/images/speech.png
-  :scale: 50%
   :class: speech
 
 
@@ -531,8 +519,8 @@ l’opération, il faut, comme pour le module ``banners``, d’abord initialiser
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-speech init -Tb 20260131_09h00m00 -Td 15mn
-    (cablewatch) $ cablewatch-ingest list
+    $ cablewatch-speech init -Tb 20260131_09h00m00 -Td 15mn
+    $ cablewatch-ingest list
     ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
     ┃ NAME    ┃ BEGIN             ┃ END               ┃ DURATION ┃ EFFECTIVE_DURATION ┃ NUM_SEGMENTS ┃ NUM_DISCONTINUITIES ┃
     ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
@@ -557,7 +545,7 @@ Ce contenu ``.wav`` est alors *uploadé* dans un *bucket* dédié sous la forme 
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-speech upload
+    $ cablewatch-speech upload
     (...)
     '20260131_09h43m21 INFO cablewatch.speech '20260131_09h00m00_900000ms.wav' uploaded
     (...)
@@ -568,7 +556,7 @@ On peut inspecter le contenu du *bucket* avec la commande ci-dessous. Si, avant 
 .. code-block:: shell-session
   :class: small-font
 
-  (cablewatch) $ cablewatch-speech list-bucket
+  $ cablewatch-speech list-bucket
   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
   ┃ NAME                                                     ┃  SIZE   ┃ CONTENT ┃
   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
@@ -586,7 +574,7 @@ de la nouvelle *timeline* « rogne » de ``10s`` sur la fin de l’ancienne. Ce 
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-ingest list
+    $ cablewatch-ingest list
     ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
     ┃ NAME    ┃ BEGIN             ┃ END               ┃ DURATION ┃ EFFECTIVE_DURATION ┃ NUM_SEGMENTS ┃ NUM_DISCONTINUITIES ┃
     ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
@@ -607,7 +595,7 @@ Pour lancer la transcription côté ``Google Cloud``, il faut utiliser la comman
 .. code-block:: shell-session
   :class: small-font
 
-    (cablewatch) $ cablewatch-ingest launch
+    $ cablewatch-ingest launch
     20260131_10h00m04 WARNING cablewatch.speech no enough wav blobs (5 needed) to start launching
 
 Le lancement ne s’effectue pas si il n’y a pas au moins cinq fichiers ``.wav`` *uploadés* dans
@@ -617,15 +605,15 @@ le *bucket*. Il est donc nécessaire de répéter encore quatre fois l’opérat
 .. code-block:: shell-session
   :class: small-font
 
-  (cablewatch) $ cablewatch-speech upload
+  $ cablewatch-speech upload
   (...)
-  (cablewatch) $ cablewatch-speech upload
+  $ cablewatch-speech upload
   (...)
-  (cablewatch) $ cablewatch-speech upload
+  $ cablewatch-speech upload
   (...)
-  (cablewatch) $ cablewatch-speech upload
+  $ cablewatch-speech upload
   (...)
-  (cablewatch) $ cablewatch-speech list-bucket
+  $ cablewatch-speech list-bucket
   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━┓
   ┃ NAME                                                          ┃   SIZE ┃ CONTENT     ┃
   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━┩
@@ -639,7 +627,7 @@ le *bucket*. Il est donc nécessaire de répéter encore quatre fois l’opérat
   │ speech-extractor/uploaded/20260131_09h34m30_900000ms.wav      │    26M │ ?           │
   │ speech-extractor/uploaded/20260131_09h49m20_900000ms.wav      │    26M │ ?           │
   └───────────────────────────────────────────────────────────────┴────────┴─────────────┘
-  (cablewatch) $ cablewatch-ingest launch
+  $ cablewatch-ingest launch
   (...)
   20260131_09h54m57 INFO cablewatch.speech The following wav files will be processed under the operation
   20260131_09h54m57 INFO cablewatch.speech  'projects/85509047826/locations/eu/operations/v2-01234567-0000-1111-2222-3456789abcde':
@@ -649,7 +637,7 @@ le *bucket*. Il est donc nécessaire de répéter encore quatre fois l’opérat
   20260131_09h54m57 INFO cablewatch.speech   - gs://cablewatch-prod-bucket/speech-extractor/uploaded/20260131_09h34m30_900000ms.wav
   20260131_09h54m57 INFO cablewatch.speech   - gs://cablewatch-prod-bucket/speech-extractor/uploaded/20260131_09h49m20_900000ms.wav
   (...)
-  (cablewatch) $ cablewatch-speech list-bucket
+  $ cablewatch-speech list-bucket
   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
   ┃ NAME                                                          ┃   SIZE ┃ CONTENT                                      ┃
   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -680,7 +668,7 @@ l'opération sur ``Google cloud``. Il est donc facile d’associer chaque ``.wav
 .. code-block:: shell-session
   :class: small-font
 
-  (cablewatch) $ cablewatch-speech list-bucket
+  $ cablewatch-speech list-bucket
   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓
   ┃ NAME                                                          ┃   SIZE ┃ CONTENT ┃
   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩
@@ -699,7 +687,7 @@ La commande ci-dessous récupère les ``.json`` et efface les *blobs* inutiles c
 .. code-block:: shell-session
   :class: small-font
 
-  (cablewatch) $ cablewatch-speech fetch
+  $ cablewatch-speech fetch
   20260131_10h04m57 INFO cablewatch.speech delete blob ' speech-extractor/launched/20260131_09h00m00_900000ms.txt'
   (...)
   20260131_10h04m57 INFO cablewatch.speech delete blob 'speech-extractor/results/20260131_09h00m00_900000ms_...json'
@@ -712,7 +700,7 @@ de stockage:
 
 .. code-block:: shell-session
 
-    (cablewatch) $ ls data/speech
+    $ ls data/speech
     20260131_10h24m28_810006ms.json     20260131_11h05m26_850153ms.json
     20260131_10h37m26_848063ms.json     20260131_11h19m26_850083ms.json
     20260131_10h51m26_850153ms.json     20260131_11h33m26_850060ms.json
@@ -725,7 +713,7 @@ Schéma orienté *Data flow*
 Voici un schéma orienté *data flow* qui offre une vision plus global du système décrit.
 
 .. image:: _static/images/architecture-speech.png
-  :scale: 65%
+  :class: architecture-speech
 
 
 Nettoyage des données [C2]_
@@ -892,7 +880,6 @@ Composant ``cablewatch.papers``
 ===============================
 
 .. image:: _static/images/papers.png
-  :scale: 50%
   :class: papers
 
 
@@ -947,7 +934,6 @@ Voici un schéma orienté *data flow* qui offre une vision plus global du systè
 
 
 .. image:: _static/images/papers-generation.png
-  :scale: 60%
   :class: papers-generation
 
 |pgbr|
@@ -972,20 +958,20 @@ Exemple de *paper* généré
     {
       "timestamp": "22h59m59",
       "speaker": "#9901 - Julien Benedetto",
-      "text": "C'est la question du 23h. A l'étranger, l'Union européenne accentue la pression sur l'Iran.
-        Les 27 ont décidé aujourd'hui de classer les gardiens de la Révolution, bras armé de l'Ayatollah,
-        comme organisation terroriste. L'escalade verbale se poursuit entre Washington et Téhéran. Ce soir
-        le régime des mollahs menace de riposter instantanément en cas d'attaque américaine. Page spéciale
-        avec notre amant, notre spécialiste des questions internationales Ben Barnier. Aux États-Unis le
-        calme revient à Minneapolis. Les deux agents de la police de l'immigration impliqués dans la mort
-        d'Alex Pretti ont été suspendus. Nous verrons que la rébellion s'organise dans la ville, des habitants
-        se mobilisent pour traquer les agents de l'ICE et les empêcher d'opérer. Et puis des geôles algériennes
-        à l'Académie française, c'est le destin de Boualem Sansal élu cet après-midi. L'écrivain franco-algérien
-        rejoint donc les immortels près de trois mois après sa sortie de prison, vous l'entendrez dans notre page
-        culture à la fin de ce 23h. Voilà pour les titres, bienvenue à tous. On commence donc avec ces nouvelles
-        révélations sur l'incendie du bar de Crans-Montana qui a fait 40 morts je vous le rappelle. L'enquête d'abord,
-        deux nouvelles personnes sont mises en cause, deux responsables de la sécurité incendie de la ville vont être
-        interrogés par la justice sur l'absence de contrôle dans ce bar. Nathalie Perez, Sada Souban."
+      "text": "C'est la question du 23h. A l'étranger, l'Union européenne accentue la pression sur l'Iran." \
+        "Les 27 ont décidé aujourd'hui de classer les gardiens de la Révolution, bras armé de l'Ayatollah," \
+        "comme organisation terroriste. L'escalade verbale se poursuit entre Washington et Téhéran. Ce soir" \
+        "le régime des mollahs menace de riposter instantanément en cas d'attaque américaine. Page spéciale" \
+        "avec notre amant, notre spécialiste des questions internationales Ben Barnier. Aux États-Unis le" \
+        "calme revient à Minneapolis. Les deux agents de la police de l'immigration impliqués dans la mort" \
+        "d'Alex Pretti ont été suspendus. Nous verrons que la rébellion s'organise dans la ville, des habitants" \
+        "se mobilisent pour traquer les agents de l'ICE et les empêcher d'opérer. Et puis des geôles algériennes" \
+        "à l'Académie française, c'est le destin de Boualem Sansal élu cet après-midi. L'écrivain franco-algérien" \
+        "rejoint donc les immortels près de trois mois après sa sortie de prison, vous l'entendrez dans notre page" \
+        "culture à la fin de ce 23h. Voilà pour les titres, bienvenue à tous. On commence donc avec ces nouvelles" \
+        "révélations sur l'incendie du bar de Crans-Montana qui a fait 40 morts je vous le rappelle. L'enquête d'abord," \
+        "deux nouvelles personnes sont mises en cause, deux responsables de la sécurité incendie de la ville vont être" \
+        "interrogés par la justice sur l'absence de contrôle dans ce bar. Nathalie Perez, Sada Souban."
     },
     {
       "timestamp": "23h01m27",
@@ -995,13 +981,13 @@ Exemple de *paper* généré
     {
       "timestamp": "23h01m29",
       "speaker": "#10000",
-      "text": "de la ville de Crans-Montana. Après le couple Moretti, un troisième suspect. Il s'agit de l'ancien
-      responsable de la sécurité incendie. Le quatrième suspect est celui qui l'a remplacé à partir de 2020 et qui
-      pendant 5 ans n'a jamais contrôlé le bar du Constellation. La première inspection sécurité incendie a lieu en
-      2018. L'agent relève une dizaine d'éléments à mettre aux normes. Nous nous sommes procuré le rapport d'inspection
-      de 2019. Un an après, on constate qu'il manque toujours un extracteur de fumée, une issue qui mène vers l'extérieur
-      et à l'air libre, des portes d'entrée qui ouvrent vers l'extérieur et qu'il ne faut pas de matériaux combustibles.
-      Puis plus rien jusqu'en 2025 comme l'a reconnu le président de la commune au lendemain du drame."
+      "text": "de la ville de Crans-Montana. Après le couple Moretti, un troisième suspect. Il s'agit de l'ancien" \
+        "responsable de la sécurité incendie. Le quatrième suspect est celui qui l'a remplacé à partir de 2020 et qui" \
+        "pendant 5 ans n'a jamais contrôlé le bar du Constellation. La première inspection sécurité incendie a lieu en" \
+        "2018. L'agent relève une dizaine d'éléments à mettre aux normes. Nous nous sommes procuré le rapport d'inspection" \
+        "de 2019. Un an après, on constate qu'il manque toujours un extracteur de fumée, une issue qui mène vers l'extérieur" \
+        "et à l'air libre, des portes d'entrée qui ouvrent vers l'extérieur et qu'il ne faut pas de matériaux combustibles." \
+        "Puis plus rien jusqu'en 2025 comme l'a reconnu le président de la commune au lendemain du drame."
     },
     {
       "topic": "Crans-Montana : les services de la commune mis en cause",
@@ -1029,7 +1015,6 @@ Composant ``cablewatch.scheduler`` [C1]_
 ========================================
 
 .. image:: _static/images/scheduler.png
-  :scale: 50%
   :class: scheduler
 
 
@@ -1085,7 +1070,6 @@ Composant ``cablewatch.http``
 =============================
 
 .. image:: _static/images/http.png
-  :scale: 50%
   :class: http
 
 

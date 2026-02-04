@@ -40,10 +40,10 @@ Activate
 .. code-block:: shell-session
 
     $ python3 src/cablewatch/scripts/run_docker_devel_image.py
-    * docker run -v /home:/home -v .../cablewatch/.cache/docker-volumes/pyenv-versions:/customization/pyenv/versions --user 1000:1000 -it --rm --hostname cablewatch-devel0 cablewatch-devel
+    * docker run -v /home:/home -v .../cablewatch/.cache/docker-volumes/pyenv-versions:/customization/...
     Creating virtualenv 'cablewatch'...
     Looking in links: /tmp/tmpmuv3q3u0
-    Requirement already satisfied: pip in /customization/pyenv/versions/cablewatch/lib/python3.13/site-packages (25.3)
+    Requirement already satisfied: pip in /customization/pyenv/versions/cablewatch/lib/...
     (cablewatch) $
 
 
@@ -79,7 +79,7 @@ To use the web service, a user must be created:
 
     (cablewatch) $ cablewatch-adduser
     Username: loghaan
-    Password: <you_will_never_guess_this_ha_ha_ha>
+    Password: <you_will_never_guess_this>
     Roles: admin
 
     Copy the content below into your ``cablewatch-local.toml`` file:
@@ -144,7 +144,7 @@ purpose, although other tools exist. ``wscat`` can be installed using the follow
 
 .. code-block:: shell-session
 
-    (cablewatch) $ wscat -c ws://127.0.0.1:8000/api/ingest --auth loghaan:<you_will_never_guess_this_ha_ha_ha>
+    $ wscat -c ws://127.0.0.1:8000/api/ingest --auth loghaan:<you_will_never_guess_this>
     Connected (press CTRL+C to quit)
     < {"type": "status", "recording_requested": true, "pid": 28621, "service_start_time": ...
 
@@ -183,7 +183,7 @@ List papers
 
 .. code-block:: shell-session
 
-    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> http://192.168.0.102:8000/api/papers/list | jq .
+    $ curl -u loghaan:<you_will_never_guess_this> http://192.168.0.102:8000/api/papers/list | jq .
     % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                      Dload  Upload   Total   Spent    Left  Speed
     100  1948 100  1948   0     0 48070     0  --:--:-- --:--:-- --:--:-- 48700
@@ -201,8 +201,8 @@ Download first paper
 
 .. code-block:: shell-session
 
-    (cablewatch) $
-    curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download/0'
+    $ curl -u loghaan:<you_will_never_guess_this> \
+        -OJ 'http://192.168.0.102:8000/api/papers/download/0'
 
 
 Download all papers as archive
@@ -210,7 +210,8 @@ Download all papers as archive
 
 .. code-block:: shell-session
 
-    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download-archive/*matinale*'
+    $ curl -u loghaan:<you_will_never_guess_this> \
+        -OJ 'http://192.168.0.102:8000/api/papers/download-archive/*matinale*'
 
 
 List and filter papers
@@ -218,7 +219,8 @@ List and filter papers
 
 .. code-block:: shell-session
 
-    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> 'http://192.168.0.102:8000/api/papers/list/*matinale*' |jq .
+    $ curl -u loghaan:<you_will_never_guess_this> \
+        'http://192.168.0.102:8000/api/papers/list/*matinale*' |jq .
     % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
     100   216 100   216   0     0  5014     0  --:--:-- --:--:-- --:--:--  5023
@@ -237,7 +239,8 @@ Download first filtered paper
 
 .. code-block:: shell-session
 
-    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download/*matinale*/0'
+    $ curl -u loghaan:<you_will_never_guess_this> -OJ \
+        'http://192.168.0.102:8000/api/papers/download/*matinale*/0'
 
 
 Download all filtered papers as archive
@@ -245,7 +248,8 @@ Download all filtered papers as archive
 
 .. code-block:: shell-session
 
-    (cablewatch) $ curl -u loghaan:<you_will_never_guess_this_ha_ha_ha> -OJ 'http://192.168.0.102:8000/api/papers/download-archive/*matinale*'
+    $ curl -u loghaan:<you_will_never_guess_this> -OJ \
+        'http://192.168.0.102:8000/api/papers/download-archive/*matinale*'
 
 
 Logs
@@ -286,18 +290,18 @@ Running Tests
     plugins: sugar-1.1.1
     collected 25 items
 
-    tests/test_codequality.py::test_ruff[src/...]                    4% ▌
-    tests/test_codequality.py::test_ruff[src/...]                    8% ▊
-    tests/test_codequality.py::test_ruff[src/...]                   12% █▎
-    tests/test_codequality.py::test_ruff[src/...]                   16% █▋
-    tests/test_codequality.py::test_ruff[src/...]                   20% ██
-    tests/test_codequality.py::test_ruff[src/...]                   24% ██▌
-    tests/test_codequality.py::test_ruff[src/...]                   28% ██▊
-    tests/test_codequality.py::test_ruff[src/...]                   32% ███▎
-    tests/test_codequality.py::test_ruff[src/...]                   36% ███▋
-    tests/test_codequality.py::test_ruff[src/...]                   40% ████
-    tests/test_codequality.py::test_ruff[src/...]                   44% ████▌
-    tests/test_codequality.py::test_ruff[src/...]                   48% ████▊
+    tests/test_codequality.py::test_ruff[src/...] ✓                  4% ▌
+    tests/test_codequality.py::test_ruff[src/...] ✓                  8% ▊
+    tests/test_codequality.py::test_ruff[src/...] ✓                 12% █▎
+    tests/test_codequality.py::test_ruff[src/...] ✓                 16% █▋
+    tests/test_codequality.py::test_ruff[src/...] ✓                 20% ██
+    tests/test_codequality.py::test_ruff[src/...] ✓                 24% ██▌
+    tests/test_codequality.py::test_ruff[src/...] ✓                 28% ██▊
+    tests/test_codequality.py::test_ruff[src/...] ✓                 32% ███▎
+    tests/test_codequality.py::test_ruff[src/...] ✓                 36% ███▋
+    tests/test_codequality.py::test_ruff[src/...] ✓                 40% ████
+    tests/test_codequality.py::test_ruff[src/...] ✓                 44% ████▌
+    tests/test_codequality.py::test_ruff[src/...] ✓                 48% ████▊
     tests/test_codequality.py::test_ruff[tests/...] ✓               52% █████▎
     tests/test_codequality.py::test_ruff[tests/...] ✓               56% █████▋
     tests/test_codequality.py::test_ruff[src/...] ✓                 60% ██████

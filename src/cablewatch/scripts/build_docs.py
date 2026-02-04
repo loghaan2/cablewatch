@@ -2,12 +2,13 @@
 
 import subprocess
 import os
+import sys
 
 THEMES = 'report', 'slides'
 
-MASTER_DOCS = {
-    'report': 'html+weasyprint',
-    'slides': 'html+weasyprint',
+ROOT_DOCS_OPTIONS = {
+    'report': 'html',
+    'slides': 'html',
     'rtd': 'html',
     'project_proposal': 'revealjs',
 }
@@ -26,15 +27,12 @@ def main():
     from cablewatch import config
     conf = config.Config()
     os.chdir(f'{conf.PROJECT_DIR}/docs/src')
-    for thm in THEMES:
-        system(f"sassc _themes/{thm}/sass/style.sass _themes/{thm}/static/style.css")
-    for master_doc, backend in MASTER_DOCS.items():
-        if 'html' in backend:
-            system(f"CABLEWATCH_MASTER_DOC={master_doc} sphinx-build -E -b html . ../build/{master_doc}")
-        if 'revealjs' in backend:
-            system(f"CABLEWATCH_MASTER_DOC={master_doc} sphinx-build -E -b revealjs . ../build/{master_doc}")
-        if 'weasyprint' in backend:
-            system(f"weasyprint ../build/{master_doc}/{master_doc}.html ../build/{master_doc}/{master_doc}.pdf")
+    root_docs = sys.argv[1:]
+    if len(root_docs) == 0:
+        root_docs = ROOT_DOCS_OPTIONS.keys()
+    for root_doc in root_docs:
+        backend = ROOT_DOCS_OPTIONS[root_doc]
+        system(f"sphinx-build -Droot_doc={root_doc} -E -b {backend} . ../build/{root_doc}")
 
 
 if __name__ == '__main__':
