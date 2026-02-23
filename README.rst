@@ -4,6 +4,10 @@
 
 .. after-titles
 
+.. warning:: This project in now archived on github side. New repository
+    location is https://gitlab.com/loghaan/cablewatch
+
+
 The objective of the “cablewatch” project is to monitor the live broadcast of a French news channe
 and generate structured files describing each program. Document generation is performed continuously,
 following the live stream in real time.
