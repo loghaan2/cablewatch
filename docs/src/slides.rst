@@ -4,7 +4,7 @@
 .. rubric:: Base documentaire construite |br| à partir du *live* d'une chaîne d'info
   :class: title-secondary
 
-.. rubric:: Sébastien MATZ |br| *2 Février 2026* |br| https://github.com/loghaan2/cablewatch
+.. rubric:: Sébastien MATZ |br| *2 Février 2026* |br| https://gitlab.com/loghaan/cablewatch.git
   :class: title-fields
 
 
